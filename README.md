@@ -8,18 +8,18 @@ Made as a practise for possibly coding an emulator for some real device
 Documentation is incomplete and outdated laying around in a spreadsheet.
 
 
-##Currently working
+## Currently working
 
-1. instruction set
-1. keyboard input
-1. video and audio output
+* instruction set
+* keyboard input
+* video and audio output
 
-##Future ideas
+## Future ideas
 
-1. multiple cores
-1. memory protection
-1. more emulated hardware
+* multiple cores
+* memory protection
+* more emulated hardware
 
-##Dependencies
+## Dependencies
 
-1. SDL2
+* SDL2
