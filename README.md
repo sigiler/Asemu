@@ -1,13 +1,12 @@
 # Asemu
 
-A simple emulator in C++ built around a custom designed 24bit cpu.
+A simple emulator in C++ built around a custom designed 24 bits cpu.
 
-Made as a practise for possibly coding an emulator for some real device
- or transform into some fun project like a virtual console game
- and showcase a minimal operating system.
+Made as a practise for possibly programming an emulator of some real computer,
+ transform into some toy project like a virtual console game
+ or showcase a minimal operating system.
 
-Documentation is incomplete and outdated laying around in a spreadsheet.
-
+Documentation is too incomplete and outdated to be worth sharing.
 
 ## Currently working
 
