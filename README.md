@@ -19,6 +19,7 @@ Documentation is too incomplete and outdated to be worth sharing.
 * multiple cores
 * memory protection
 * more emulated hardware
+* Qt frontend
 
 ## Dependencies
 
