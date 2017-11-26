@@ -3,16 +3,33 @@
 
 struct App {
 
-	App();
-	~App();
+	App() {};
+	virtual ~App() {};
 
-	bool OnInit();
-	void OnDeInit();
+	virtual bool Init() = 0;
+	virtual void DeInit() = 0;
 
-	void OnEvent();
-	void OnLoop();
-	void OnRender();
+	virtual void HandleInput() = 0;
+	virtual void HandleMain() = 0;
+	virtual void HandleRender() = 0;
 
-	int RunMain();
+	/*
+	bool Running;
+	int RunMain() {
+	    if (Init() == false) {
+	        return -1;
+	    }
+
+	    while(Running) {
+	        HandleInput();
+	        HandleMain();
+	        HandleRender();
+	    }
+
+	    DeInit();
+
+	    return 0;
+	}
+	*/
 
 };

@@ -2,64 +2,81 @@
 #pragma once
 
 #include "../common/common_types.hpp"
-#include <string>
+#include "../common/common_macros.hpp"
 
+#include <vector>
+#include <string>
+#include <cassert>
+
+#include "../common/type_u24.hpp"
 #include "mem.hpp"
 #include "ports.hpp"
 
-// move this to static const in registers?
-#define NUM_REGISTERS 12
+struct registers {
 
-// abusing undefined behaviour
-union registers {
-	struct {
-		u32 a : 24;
-		u32 b : 24;
-		u32 c : 24;
-		u32 x : 24;
-		u32 y : 24;
-		u32 z : 24;
-		// TODO fix endianness
-		union {
-			struct {
-				u32 p : 1;  // privileged flag
-				u32 i : 1;  // in interrupt flag
-				u32 e : 1;  // in exception flag
-				u32 ie : 1;  // interrupts enabled
-				u32 ee : 1;  // exceptions enabled
-				u32 uu : 3;  // unused bits
-				u32 t : 4; // t o, generic flags for compares
-				u32 v : 1;  // overflow flag
-				u32 n : 1;  // negative flag
-				u32 z : 1;  // zero flag
-				u32 c : 1;  // carry flag
-			} f;
-			u32 fs : 24;  // flags and status register
-		};
-		u32 pr : 24;  // predicate register
-		u32 sp : 24;  // stack pointer
-		u32 cp : 24;  // code pointer (aka pc, ip)
-		u32 ip : 24;  // interrupt pointer
-		u32 ep : 24;  // exception pointer
+	static const u8 number = 12;
+
+	u24 a;
+	u24 b;
+	u24 c;
+	u24 x;
+	u24 y;
+	u24 z;
+
+	// assuming little endian and abusing undefined behaviour
+	union FlagsStatusRegister {
+		// register value
+		u24 val;
+		// flags
+		struct {
+			u32 uu : 20;  // other bits
+			u32 v : 1;    // overflow flag
+			u32 n : 1;    // negative flag
+			u32 z : 1;    // zero flag
+			u32 c : 1;    // carry flag
+		} f;
+		// status
+		struct {
+			u32 i : 1;    // in interrupt mode
+			u32 e : 1;    // in exception mode
+			u32 ie : 1;   // interrupts enabled
+			u32 ee : 1;   // exceptions enabled
+			u32 p : 1;    // in privileged mode
+			u32 v : 1;    // virtual memory enabled
+			u32 uu : 18;  // other bits
+		} s;
+		// imitate u24
+		inline operator u24() const { return val; }
+		inline FlagsStatusRegister& operator=(const u24 v) { val = v; return *this; }
+		FlagsStatusRegister() { val = 0; };
+	} fs;  // flags and status register
+	u24 pr;  // predicate register
+	u24 sp;  // stack pointer
+	u24 cp;  // code pointer (aka pc, ip)
+	u24 ip;  // interrupt pointer
+	u24 ep;  // exception pointer
+
+	u24* ref[12] = {&a, &b, &c, &x, &y, &z, &fs.val, &pr, &sp, &cp, &ip, &ep};
+
+	inline u24& reg(u8 i) {
+		assert(i < 12);
+		return *ref[i];
 	};
 
-	struct {
-		struct {
-			u32 r : 24;
-		} gpr[6];
-		struct {
-			u32 r : 24;
-		} spr[6];
+	inline u24& gpr(u8 i) {
+		assert(i < 6);
+		return *ref[i];
 	};
 
-	struct {
-		u32 r : 24;
-	} reg[NUM_REGISTERS];
+	inline u24& spr(u8 i) {
+		assert(i < 6);
+		return *ref[i+6];
+	};
+
 };
 
-//typedef std::function<void (struct cpu*)> instr_func;  // C++ lib is inefficient
-//typedef void (*instruction_callback)(struct cpu*);     // C is efficient but ugly syntax
-using instruction_callback = void (*) (struct cpu*);     // as efficient as C definition, better syntax
+
+using instruction_callback = void (*) (struct cpu*);
 
 struct instructions {
 	instruction_callback* exec_table;
@@ -72,7 +89,7 @@ struct cpu {
 	registers regs;
 	instructions instrs;
 	memory* mem;
-	ports* port;
+	ports* prt;
 
 	// properties
 	u64 clock_rate;      // number of cycles executed per second
@@ -134,8 +151,39 @@ struct cpu {
 	void resume();
 	void pause();
 
-	void save(u8* buf);
-	void load(u8* buf);
+	void save(std::vector<u8> buf);
+	void load(std::vector<u8> buf);
+
+};
+
+
+struct InterruptsExceptions {
+	// almost an interrupt/exception controller, dunno what to do here
+	// move to some sort of controller
+	// move to ports
+
+	enum InterruptCause {
+		Int_poweron, int_timer, int_keys, int_screen, int_speaker, int_rtc,
+		Exc_software, Exc_divby0, Exc_overflow, Exc_mem, exc_dbg,
+		Int_nmi, int_req,
+		arith_overflow, undefined_instr, syscall, external,
+	};
+
+	bool intr_enabled;  // master enable interrupt, mirrors flag?
+	bool excp_enabled;  // master enable exception, mirrors flag?
+	u32 ie_mask;    // determine what can trigger interrupt
+	u32 ie_ack;     // acknowledge by writing 1 here
+	// unstoppable interrupt?
+	// stay pending when masked or miss if masked and not acknowledge?
+
+	u32 cause;  // current interrupt cause
+	u32 where; // address where it was caused
+
+	u64 next_interrupt_cycle;  // cycle where next interrupt is scheduled
+
+	// unused code
+	//next_interrupt_cycle = cyclesExecuted + interrupt_rate;
+	// cyclesExecuted >= next_interrupt_cycle
 
 };
 
@@ -192,8 +240,8 @@ enum GROUP {
 	FF_REG,   // JMP, CALL reg
 	FF,       // RET
 	REGSET,   // PUSH POP
-
 	RR_RR_port, // IN OUT
+
 	IMPLICIT,
 	NONE,
 	NOOP
@@ -202,7 +250,7 @@ enum GROUP {
 
 // registers and addressing modes
 
-enum REGS {
+enum REGS : u8 {
 	RGS_A,
 	RGS_B,
 	RGS_C,
@@ -215,13 +263,13 @@ enum REGS {
 	RGS_IP,
 };
 
-enum REG_MODE {
-	REG_A,
-	REG_B,
-	REG_C,
-	REG_X,
-	REG_Y,
-	REG_Z,
+enum REG_MODE : u8 {
+	REG_A = 0,
+	REG_B = 1,
+	REG_C = 2,
+	REG_X = 3,
+	REG_Y = 4,
+	REG_Z = 5,
 	REG_A_ind,
 	REG_B_ind,
 	REG_C_ind,
@@ -247,7 +295,7 @@ enum REG_MODE {
 	REG_FS
 };
 
-enum REGSET {
+enum REGSET : u8 {
 	RS_A = 1 << 0,
 	RS_B = 1 << 1,
 	RS_C = 1 << 2,
@@ -260,14 +308,14 @@ enum REGSET {
 
 // flags
 
-enum FLAGS {
+enum FLAGS : u32 {
 	Z_MASK = 1 << 3,
 	C_MASK = 1 << 2,
 	V_MASK = 1 << 1,
 	N_MASK = 1 << 0,
 };
 
-enum CONDS_FLAGS {
+enum CONDS_FLAGS : u8 {
 	// conditions
 	always = 0x00,
 	eq,
@@ -292,36 +340,4 @@ enum CONDS_FLAGS {
 	nonoverflow,
 	// unused
 	never,
-};
-
-// scrapped parts
-
-struct intexc {
-	// almost an interrupt/exception controller, dunno what to do here
-	// move to some sort of controller
-	// move to ports
-
-	enum InterruptCause {
-		Int_poweron, int_timer, int_keys, int_screen, int_speaker, int_rtc,
-		Exc_software, Exc_divby0, Exc_overflow, Exc_mem, exc_dbg,
-		Int_nmi, int_req,
-		arith_overflow, undefined_instr, syscall, external,
-	};
-
-	bool intr_enabled;  // master enable interrupt, mirrors flag?
-	bool excp_enabled;  // master enable exception, mirrors flag?
-	u32 ie_mask;    // determine what can trigger interrupt
-	u32 ie_ack;     // acknowledge by writing 1 here
-	// unstoppable interrupt?
-	// stay pending when masked or miss if masked and not acknowledge?
-
-	u8 cause;  // current interrupt cause
-	u32 where; // address where it was caused
-
-	u64 next_interrupt_cycle;  // cycle where next interrupt is scheduled
-
-	// unused code
-	//next_interrupt_cycle = cyclesExecuted + interrupt_rate;
-	// cyclesExecuted >= next_interrupt_cycle
-
 };

@@ -30,10 +30,16 @@ void memory::write_byte(u32 address, u8 byte) {
 	buffer[address] = byte;
 }
 
-void memory::save(u8* buffer) {
-	// unimplemented
+void memory::save(std::vector<u8> buf) {
+	buf.reserve(size);
+	for (u32 i = 0; i < size; i++) {
+		buf[i] = buffer[i];
+	}
 }
 
-void memory::load(u8* buffer) {
-	// unimplemented
+void memory::load(std::vector<u8> buf) {
+	buf.reserve(size);
+	for (u32 i = 0; i < size; i++) {
+		buffer[i] = buf[i];
+	}
 }

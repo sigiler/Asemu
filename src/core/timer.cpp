@@ -19,17 +19,21 @@ timer::~timer() {
 }
 
 void timer::update_advance(u64 timing) {
-	// TODO implement
+	UNUSED(timing);
+	// unimplemented
 }
 
 void timer::setRTC(rtc_state* newdatetime) {
-	// TODO implement
+	UNUSED(newdatetime);
+	// unimplemented
 }
 
 void timer::getRTC(rtc_state* newdatetime) {
-	// TODO implement
+	UNUSED(newdatetime);
+	// unimplemented
 }
 
 void timer::updateRTC(rtc_state* datetimeadvance) {
-	// TODO implement
+	UNUSED(datetimeadvance);
+	// unimplemented
 }

@@ -3,10 +3,12 @@
 
 #include <SDL2/SDL.h>
 
+#include "../common/common_macros.hpp"
 #include "../app.hpp"
 #include "../emu.hpp"
 #include "sdl_input.hpp"
 #include "sdl_output.hpp"
+
 
 // move this to proper place
 //#define MULTI_CORE
@@ -48,12 +50,14 @@ public:
 	App_SDL();
 	~App_SDL();
 
-	bool OnInit();
-	void OnDeInit();
+	bool Init();
+	void DeInit();
+
+	void HandleInput();
+	void HandleMain();
+	void HandleRender();
 
 	void OnEvent(SDL_Event* Event);
-	void OnLoop();
-	void OnRender();
 	void Sync();
 
 	int Run();

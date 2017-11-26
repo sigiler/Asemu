@@ -2,6 +2,8 @@
 #pragma once
 
 #include "../common/common_types.hpp"
+#include "../common/common_macros.hpp"
+#include <vector>
 
 // constants
 
@@ -53,8 +55,8 @@ struct memory {
 	u8 get_rights();
 	void set_rights(u8 r);
 
-	void save(u8* buf);
-	void load(u8* buf);
+	void save(std::vector<u8> buf);
+	void load(std::vector<u8> buf);
 
 };
 
@@ -86,7 +88,7 @@ struct memory_virtual {
 	void add_map(u32 address, u32 size);
 	void rem_map(u32 address, u32 size);
 
-	void save(u8* buf);
-	void load(u8* buf);
+	void save(std::vector<u8> buf);
+	void load(std::vector<u8> buf);
 
 };

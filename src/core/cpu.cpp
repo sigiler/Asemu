@@ -1,7 +1,7 @@
 
 #include "cpu.hpp"
+#include "../common/common_types.hpp"
 #include "../utils/logger.hpp"
-
 
 // table for opcodes base length in bytes
 u8 opcode_bytes[256] = {
@@ -58,9 +58,10 @@ struct opcode_atrib {
 };
 opcode_atrib opcode;
 
-// instructions helpers
 
-int reg_no_inc_dec(int r) {
+// addressing modes helper
+
+u8 reg_no_inc_dec(u8 r) {
 	// no inc or dec
 	if (r <= REG_Z_ind)
 		return r;
@@ -74,7 +75,7 @@ int reg_no_inc_dec(int r) {
 		return r;
 }
 
-int reg_a_or_x(int r) {
+u8 reg_a_or_x(u8 r) {
 	if (r == REG_A_ind_inc_b || r == REG_A_ind_dec_b ||
 	    r == REG_A_ind_inc || r == REG_A_ind_dec)
 		return REG_A_ind;
@@ -85,7 +86,7 @@ int reg_a_or_x(int r) {
 		return r;
 }
 
-int reg_a_x_step(int r) {
+u8 reg_a_x_step(u8 r) {
 	int step = 1;
 	if (r >= REG_A_ind_inc && r <= REG_X_ind_dec)
 		step = 3;
@@ -95,34 +96,103 @@ int reg_a_x_step(int r) {
 	return step;
 }
 
+// addressing modes
+
+u32 cpu::read_reg_mode1(u8 r) {
+	if (r <= REG_Z)
+		return regs.gpr(r);
+	if (r >= REG_A_ind && r <= REG_Z_ind)
+		return cpu::read_word(regs.gpr(r-REG_A_ind));
+	if (r >= REG_A_ind_inc && r <= REG_X_ind_dec_b) {
+		u32 value = cpu::read_word(regs.gpr(reg_a_or_x(r)));
+		regs.gpr(reg_a_or_x(r)) += reg_a_x_step(r);
+		return value;
+	} else {
+		cpu::error("bad read");
+		return 0;
+	}
+}
+
+void cpu::write_reg_mode1(u8 r, u32 v) {
+	if (r <= REG_Z)
+		regs.gpr(r) = v;
+	if (r >= REG_A_ind && r <= REG_Z_ind)
+		cpu::write_word(regs.gpr(r-REG_A_ind), v);
+	if (r >= REG_A_ind_inc && r <= REG_X_ind_dec_b) {
+		cpu::write_word(regs.gpr(reg_a_or_x(r)), v);
+		regs.gpr(reg_a_or_x(r)) += reg_a_x_step(r);
+	}
+	if (r > REG_X_ind_dec_b)
+		cpu::error("bad write");
+}
+
+u8 cpu::conditions(u8 conditions) {
+	bool zf = regs.fs.f.z;
+	bool cf = regs.fs.f.c;
+	bool nf = regs.fs.f.n;
+	bool vf = regs.fs.f.v;
+
+	switch (conditions) {
+		case always:
+			return 1;
+		case eq:
+			return zf;
+		case ne:
+			return !zf;
+		case gt:
+			return cf & !zf;
+		case lt:
+			return !cf & !zf;
+		case ge:
+			return cf | zf;
+		case le:
+			return (!cf) | zf;
+		case a:
+			return !zf && (nf == vf);
+		case b:
+			return nf != vf;
+		case ae:
+			return nf == vf;
+		case be:
+			return zf || (nf != vf);
+		case never:
+			return 0;
+		default:
+			cpu::error("invalid condition");
+			return 0;
+	}
+}
+
 // instructions implementations
 
+void instr_stub(cpu* c) {
+	UNUSED(c);
+}
+
 void instr_nop(cpu* c) {
+	UNUSED(c);
 	// nothing happens
 }
 
-void instr_stub(cpu* c) {
-
-}
-
 void instr_uop(cpu* c) {
-	// unimplemented opcode
-	c->error("unimplemented opcode");
+	// unimplemented opcode causes exception
 	c->exception();
+	// warn about this
+	c->error("unimplemented opcode");
 }
 
 void instr_mov_r_ccc(cpu* c) {
 	u32 operand1, operand2;
 	operand1 = opcode.byte[0] & 0x0F;
 	operand2 = (opcode.byte[1] << 16) | (opcode.byte[2] << 8) | opcode.byte[3];
-	c->regs.gpr[operand1].r = operand2;
+	c->regs.gpr(operand1) = operand2;
 }
 
 void instr_mov_r_c(cpu* c) {
 	u32 operand1, operand2;
 	operand1 = opcode.byte[0] & 0x0F;
 	operand2 = opcode.byte[1];
-	c->regs.gpr[operand1].r = (operand2 & 0xFF) | (c->regs.gpr[operand1].r & 0xFFFF00);
+	c->regs.gpr(operand1) = (operand2 & 0xFF) | (c->regs.gpr(operand1) & 0xFFFF00);
 }
 
 void instr_mov_rr_rr_w(cpu* c) {
@@ -146,7 +216,7 @@ void instr_mov_rs_rs(cpu* c) {
 	u32  operand1, operand2;
 	operand1 = (opcode.byte[1] >> 4) & 0x0F;
 	operand2 = opcode.byte[1] & 0x0F;
-	c->regs.reg[operand1].r = c->regs.reg[operand2].r;
+	c->regs.reg(operand1) = c->regs.reg(operand2);
 }
 
 #define STACK_REGS_NUM 8
@@ -156,7 +226,7 @@ void instr_push(cpu* c) {
 	u32 operand1 = opcode.byte[1];
 	for (int reg_index = 0; reg_index < STACK_REGS_NUM; reg_index++) {
 		if (operand1 & masks[reg_index]) {
-			c->push_word(c->regs.reg[reg_index].r);
+			c->push_word(c->regs.reg(reg_index));
 		}
 	}
 
@@ -166,7 +236,7 @@ void instr_pop(cpu* c) {
 	u32 operand1 = opcode.byte[1];
 	for (int reg_index = STACK_REGS_NUM - 1; reg_index >= 0; reg_index--) {
 		if (operand1 & masks[reg_index]) {
-			c->regs.reg[reg_index].r = c->pop_word();
+			c->regs.reg(reg_index) = c->pop_word();
 		}
 	}
 }
@@ -195,137 +265,167 @@ void instr_outb(cpu* c) {
 	c->out_byte(c->read_reg_mode1(operand1), c->read_reg_mode1(operand2));
 }
 
-#define setFlag(flag, mask, cond) flag |= (cond) ? (mask) : 0
-#define setZF(flag, cond) setFlag(flag, Z_MASK, cond)
-#define setCF(flag, cond) setFlag(flag, C_MASK, cond)
-#define setNF(flag, cond) setFlag(flag, N_MASK, cond)
-#define setVF(flag, cond) setFlag(flag, V_MASK, cond)
 
-// TODO test all this crap, probably some errors
+// arithmetic operations
+using f24 = registers::FlagsStatusRegister;
 
-void word_add(u24* r, u24* f, u24 a, u24 b) {
+void word_add(u24* r, f24* f, u24 a, u24 b) {
 	u24 carry = 0;
 	u24 overflow = ~(a ^ b) & (a ^ *r);
 	*r = a + b + carry;
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setVF(*f, (1 << 23) & (overflow));
-	setCF(*f, (1 << 23) & (overflow ^ a ^ b ^ *r));
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = ((1 << 23) & (overflow)) ? 1 : 0;
+	(*f).f.c = ((1 << 23) & (overflow ^ a ^ b ^ *r)) ? 1 : 0;
 }
-void word_adc(u24* r, u24* f, u24 a, u24 b) {
-	u24 carry = (*f & C_MASK) ? 1 : 0;
+void word_adc(u24* r, f24* f, u24 a, u24 b) {
+	u24 carry = (*f).f.c ? 1 : 0;
 	u24 overflow = ~(a ^ b) & (a ^ *r);
 	*r = a + b + carry;
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setVF(*f, (1 << 23) & (overflow));
-	setCF(*f, (1 << 23) & (overflow ^ a ^ b ^ *r));
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = ((1 << 23) & (overflow)) ? 1 : 0;
+	(*f).f.c = ((1 << 23) & (overflow ^ a ^ b ^ *r)) ? 1 : 0;
 }
-void word_sub(u24* r, u24* f, u24 a, u24 b) {
-	word_add(r, f, a, b);
+void word_sub(u24* r, f24* f, u24 a, u24 b) {
+	u24 carry = 0;
+	u24 overflow = ~(a ^ b) & (a ^ *r);
+	*r = a - b - carry;
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = ((1 << 23) & (overflow)) ? 1 : 0;
+	(*f).f.c = ((1 << 23) & (overflow ^ a ^ b ^ *r)) ? 1 : 0;
 }
-void word_sbc(u24* r, u24* f, u24 a, u24 b) {
-	word_adc(r, f, a, b);
+void word_sbc(u24* r, f24* f, u24 a, u24 b) {
+	u24 carry = (*f).f.c ? 1 : 0;
+	u24 overflow = ~(a ^ b) & (a ^ *r);
+	*r = a - b - carry;
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = ((1 << 23) & (overflow)) ? 1 : 0;
+	(*f).f.c = ((1 << 23) & (overflow ^ a ^ b ^ *r)) ? 1 : 0;
 }
-void word_mul(u24* r, u24* f, u24 a, u24 b) {
+void word_mul(u24* r, f24* f, u24 a, u24 b) {
 	*r = a * b;
-	// TODO flags
+	u64 rr = a * b;
+	(*f).f.z = *r == 0;
+	(*f).f.c = rr > 0xFFFFFF;
+	(*f).f.n = *r >> 23;
+	(*f).f.v =0;
 }
-void word_div(u24* r, u24* f, u24 a, u24 b) {
+void word_div(u24* r, f24* f, u24 a, u24 b) {
 	*r = a / b;
-	// TODO flags
+	(*f).f.z = *r == 0;
+	(*f).f.c = 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = 0;
 }
-void word_rem(u24* r, u24* f, u24 a, u24 b) {
+void word_rem(u24* r, f24* f, u24 a, u24 b) {
 	*r = a % b;
-	// TODO flags
+	(*f).f.z = *r == 0;
+	(*f).f.c = 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = 0;
 }
-void word_and(u24* r, u24* f, u24 a, u24 b) {
+void word_and(u24* r, f24* f, u24 a, u24 b) {
 	*r = a & b;
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setVF(*f, 0);
-	setCF(*f, 0);
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = 0;
+	(*f).f.c = 0;
 }
-void word_or(u24* r, u24* f, u24 a, u24 b) {
+void word_or(u24* r, f24* f, u24 a, u24 b) {
 	*r = a | b;
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setVF(*f, 0);
-	setCF(*f, 0);
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = 0;
+	(*f).f.c = 0;
 }
-void word_xor(u24* r, u24* f, u24 a, u24 b) {
+void word_xor(u24* r, f24* f, u24 a, u24 b) {
 	*r = a ^ b;
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setVF(*f, 0);
-	setCF(*f, 0);
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = 0;
+	(*f).f.c = 0;
 }
-void word_shr(u24* r, u24* f, u24 a, u24 b) {
+void word_shr(u24* r, f24* f, u24 a, u24 b) {
 	b = b & 0x0F;
 	*r = a >> b;
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setCF(*f, (a >> (b-1)) & 0x01);
-	setVF(*f, 0);
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.c = (a >> (b-1)) & 0x01;
+	(*f).f.v = 0;
 
 }
-void word_shl(u24* r, u24* f, u24 a, u24 b) {
+void word_shl(u24* r, f24* f, u24 a, u24 b) {
 	b = b & 0x0F;
 	*r = a << b;
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setCF(*f, (a << (b-1)) & 0x01);
-	setVF(*f, 0);
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.c = (a << (b-1)) & 0x01;
+	(*f).f.v = 0;
 }
-void word_ror(u24* r, u24* f, u24 a, u24 b) {
+void word_ror(u24* r, f24* f, u24 a, u24 b) {
 	b = b & 0x0F;
 	*r = ((a >> b) & 0xFFFFFF) | ((a << b) & (0xFFFFFF >> (16 - b)));
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setCF(*f, 0);
-	setVF(*f, 0);
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.c = 0;
+	(*f).f.v = 0;
 }
-void word_rol(u24* r, u24* f, u24 a, u24 b) {
+void word_rol(u24* r, f24* f, u24 a, u24 b) {
 	b = b & 0x0F;
 	*r = ((a << b) & 0xFFFFFF) | ((a >> (16-b)) & (0xFFFFFF >> (16 - b)));
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setCF(*f, 0);
-	setVF(*f, 0);
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.c = 0;
+	(*f).f.v = 0;
 }
-void word_rcr(u24* r, u24* f, u24 a, u24 b) {
-	u24 c = (*f >> 0) & 0x01;
+void word_rcr(u24* r, f24* f, u24 a, u24 b) {
+	u24 c = (*f).f.c ? 1 : 0;
 	b = b & 0x01;
 	*r = (a >> b) | c;
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setCF(*f, (a >> (b-1)) & 0x01);
-	setVF(*f, 0);
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.c = (a >> (b-1)) & 0x01;
+	(*f).f.v = 0;
 }
-void word_rcl(u24* r, u24* f, u24 a, u24 b) {
-	u24 c = (*f << 23) & 0x80;
+void word_rcl(u24* r, f24* f, u24 a, u24 b) {
+	u24 c = (*f).f.c ? 0x80 : 0;
 	b = b & 0x01;
 	*r = c | (a << b);
-	setZF(*f, *r == 0);
-	setNF(*f, *r >> 23);
-	setCF(*f, (a << (b-1)) & 0x01);
-	setVF(*f, 0);
+	(*f).f.z = *r == 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.c = (a << (b-1)) & 0x01;
+	(*f).f.v = 0;
 }
 
-void word_neg(u24* r, u24* f, u24 a) {
+void word_neg(u24* r, f24* f, u24 a) {
 	*r = -a;
+	(*f).f.z = *r == 0;
+	(*f).f.c = 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = 0;
 }
-void word_not(u24* r, u24* f, u24 a) {
+void word_not(u24* r, f24* f, u24 a) {
 	*r = ~a;
+	(*f).f.z = *r == 0;
+	(*f).f.c = 0;
+	(*f).f.n = *r >> 23;
+	(*f).f.v = 0;
 }
-void word_abs(u24* r, u24* f, u24 a) {
+void word_abs(u24* r, f24* f, u24 a) {
 	if (*r & 0x7FFFFF)
 		*r = -a;
+	(*f).f.z = *r == 0;
+	(*f).f.c = 0;
+	(*f).f.n = 0;
+	(*f).f.v = 0;
 }
 
 
-typedef void (*alu2_callback)(u24*, u24*, u24, u24);
-typedef void (*alu1_callback)(u24*, u24*, u24);
+typedef void (*alu2_callback)(u24*, f24*, u24, u24);
+typedef void (*alu1_callback)(u24*, f24*, u24);
 
 alu2_callback alu2_op[] = {
 	&word_add, &word_sub, &word_mul, &word_div, &word_rem,
@@ -340,7 +440,8 @@ alu1_callback alu1_op[] = {
 
 void instr_alu_r_rr_rr(cpu* c) {
 	u32 operation, operand1, operand2, operand3;
-	u24 result, a, b, newflags;
+	u24 result, a, b;
+	f24 newflags;
 	operation = (opcode.byte[1] >> 4) & 0x0F;
 	operand1 = opcode.byte[1] & 0x0F;
 	operand2 = (opcode.byte[2] >> 4) & 0x0F;
@@ -361,7 +462,8 @@ void instr_alu_r_rr_rr(cpu* c) {
 
 void instr_alu_r_rr(cpu* c) {
 	u32 operation, operand1, operand2;
-	u24 result, a, newflags;
+	u24 result, a;
+	f24 newflags;
 	operation = opcode.byte[0] - 0xAA;
 	operand1 = (opcode.byte[1] >> 4) & 0x0F;
 	operand2 = opcode.byte[1] & 0x0F;
@@ -444,17 +546,17 @@ void instr_fexc(cpu* c) {
 
 void instr_rets(cpu* c) {
 	c->regs.cp = c->pop_word();
-	c->regs.f.i = 0;
-	c->regs.f.e = 0;
+	c->regs.fs.s.i = 0;
+	c->regs.fs.s.e = 0;
 	opcode.bytesUsed = 0;
 }
 
 void instr_dint(cpu* c) {
-	c->regs.f.ie = 0;
+	c->regs.fs.s.ie = 0;
 }
 
 void instr_eint(cpu* c) {
-	c->regs.f.ee = 0;
+	c->regs.fs.s.ee = 0;
 }
 
 void instr_slp(cpu* c) {
@@ -504,8 +606,8 @@ instruction_callback isa_table[256] = {
 cpu::cpu() {
 
 	// reset everything to defaults
-	for (int i = 0; i < NUM_REGISTERS; i++) {
-		regs.reg[i].r = 0;
+	for (int i = 0; i < regs.number; i++) {
+		regs.reg(i) = 0;
 	}
 
 	//    isa_table[0x00] = instr_stub;
@@ -517,9 +619,11 @@ cpu::cpu() {
 	instrs.base_cycles = opcode_cycles;
 
 	mem = nullptr;
-	port = nullptr;
+	prt = nullptr;
 
-	clock_rate = 1000000;  // 1MHz or 2^24 = 1048576 Hz
+	clock_rate = 1000000;           // 1M Hz
+	//clock_rate = 1024 * 1024;       // 2^20 = 1048576 Hz
+	clock_rate = 16 * 1024 * 1024;  // 2^24 = 16777216 Hz
 
 	interrupt_rate = clock_rate / 60;
 
@@ -534,7 +638,7 @@ cpu::~cpu() {
 
 }
 
-
+// used to log about unusual circunstances
 void cpu::error(std::string description) {
 	logger.log(description);
 }
@@ -576,19 +680,19 @@ u32 cpu::pop_word() {
 }
 
 u8 cpu::in_byte(u32 p) {
-	return port->out_byte(p);
+	return prt->out_byte(p);
 }
 
 void cpu::out_byte(u32 p, u32 v) {
-	port->in_byte(p, v);
+	prt->in_byte(p, v);
 }
 
 u32 cpu::in_word(u32 p) {
-	return port->out_word(p);
+	return prt->out_word(p);
 }
 
 void cpu::out_word(u32 p, u32 v) {
-	port->in_word(p, v);
+	prt->in_word(p, v);
 }
 
 void cpu::interrupt() {
@@ -600,7 +704,7 @@ void cpu::interrupt() {
 	opcode.cyclesUsed = 1;
 	cpu::push_word(regs.cp);
 	regs.cp = regs.ip;
-	regs.f.i = 1;
+	regs.fs.s.i = 1;
 	cyclesExecuted += 1;
 	cpu::sleep = false;
 }
@@ -613,75 +717,10 @@ void cpu::exception() {
 	opcode.bytesUsed = 0;
 	opcode.cyclesUsed = 1;
 	cpu::push_word(regs.cp);
-	regs.cp = regs.ip;
-	regs.f.e = 1;
+	regs.cp = regs.ep;
+	regs.fs.s.e = 1;
 	cyclesExecuted += 1;
 	cpu::sleep = false;
-}
-
-u32 cpu::read_reg_mode1(u8 r) {
-	if (r >= REG_A && r <= REG_Z)
-		return regs.gpr[r].r;
-	if (r >= REG_A_ind && r <= REG_Z_ind)
-		return cpu::read_word(regs.gpr[r-REG_A_ind].r);
-	if (r >= REG_A_ind_inc && r <= REG_X_ind_dec_b) {
-		u32 value = cpu::read_word(regs.gpr[reg_a_or_x(r)].r);
-		regs.gpr[reg_a_or_x(r)].r += reg_a_x_step(r);
-		return value;
-	} else {
-		cpu::error("bad read");
-		return 0;
-	}
-}
-
-void cpu::write_reg_mode1(u8 r, u32 v) {
-	if (r >= REG_A && r <= REG_Z)
-		regs.gpr[r].r = v;
-	if (r >= REG_A_ind && r <= REG_Z_ind)
-		cpu::write_word(regs.gpr[r-REG_A_ind].r, v);
-	if (r >= REG_A_ind_inc && r <= REG_X_ind_dec_b) {
-		cpu::write_word(regs.gpr[reg_a_or_x(r)].r, v);
-		regs.gpr[reg_a_or_x(r)].r += reg_a_x_step(r);
-	}
-	if (r > REG_X_ind_dec_b)
-		cpu::error("bad write");
-}
-
-u8 cpu::conditions(u8 conditions) {
-	bool zf = regs.f.z;
-	bool cf = regs.f.c;
-	bool nf = regs.f.n;
-	bool vf = regs.f.v;
-
-	switch (conditions) {
-		case always:
-			return 1;
-		case eq:
-			return zf;
-		case ne:
-			return !zf;
-		case gt:
-			return cf & !zf;
-		case lt:
-			return !cf & !zf;
-		case ge:
-			return cf | zf;
-		case le:
-			return (!cf) | zf;
-		case a:
-			return !zf && (nf == vf);
-		case b:
-			return nf != vf;
-		case ae:
-			return nf == vf;
-		case be:
-			return zf || (nf != vf);
-		case never:
-			return 0;
-		default:
-			cpu::error("invalid condition");
-			return 0;
-	}
 }
 
 void cpu::power() {
@@ -690,8 +729,8 @@ void cpu::power() {
 
 void cpu::reset() {
 	// reset registers
-	for (int i = 0; i < NUM_REGISTERS; i++) {
-		regs.reg[i].r = 0;
+	for (int i = 0; i < regs.number; i++) {
+		regs.reg(i) = 0;
 	}
 	// reset state
 	cyclesExecuted = 0;
@@ -731,9 +770,9 @@ void cpu::step() {
 		cpu::fetch();
 		cpu::decode();
 		cpu::execute();
-	} else if (regs.f.ie && interrupt_pending) {
+	} else if (regs.fs.s.ie && interrupt_pending) {
 		cpu::interrupt();
-	} else if (regs.f.ee && exception_pending) {
+	} else if (regs.fs.s.ee && exception_pending) {
 		cpu::exception();
 	} else if (sleep) {
 		opcode.cyclesUsed = 1;
@@ -782,4 +821,29 @@ void cpu::resume() {
 
 void cpu::pause() {
 	running = false;
+}
+
+void cpu::save(std::vector<u8> buf) {
+	u32 cpu_size = 3*regs.number;
+	buf.reserve(cpu_size);
+	u32 r;
+	for (u8 i = 0; i < regs.number; i++) {
+		r = regs.reg(i);
+		buf[3*i+0] = r & 0xFF;
+		buf[3*i+1] = (r >> 8) & 0xFF;
+		buf[3*i+2] = (r >> 16) & 0xFF;
+	}
+}
+
+void cpu::load(std::vector<u8> buf) {
+	u32 cpu_size = 3*regs.number;
+	buf.reserve(cpu_size);
+	u32 r;
+	for (u8 i = 0; i < regs.number; i++) {
+		r = 0;
+		r |= buf[3*i+0];
+		r |= buf[3*i+1] << 8;
+		r |= buf[3*i+1] << 16;
+		regs.reg(i) = r;
+	}
 }

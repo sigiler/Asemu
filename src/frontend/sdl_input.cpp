@@ -1,16 +1,16 @@
 
 #include "sdl_input.hpp"
 
-// TODO configurable key mapping
-//u8 keyMapping[256];
+// configurable key mapping
+u8 keyMapping[256];
 
 void updateKeyboard(keys* k) {
 
 	const Uint8* keyboard_state;
 
-	keyboard_state =  SDL_GetKeyboardState(NULL);
+	keyboard_state = SDL_GetKeyboardState(NULL);
 
-	uint8_t relevant_key[7][24] = {
+	u8 relevant_key[7][24] = {
 			{SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT, SDL_SCANCODE_UP, SDL_SCANCODE_DOWN, SDL_SCANCODE_RETURN, SDL_SCANCODE_BACKSPACE,},
 			{0, SDL_SCANCODE_F1, SDL_SCANCODE_F2, SDL_SCANCODE_F3, SDL_SCANCODE_F4, SDL_SCANCODE_F5, SDL_SCANCODE_F6, SDL_SCANCODE_F7, SDL_SCANCODE_F8, SDL_SCANCODE_F9, SDL_SCANCODE_F10,},
 			{0, SDL_SCANCODE_1, SDL_SCANCODE_2, SDL_SCANCODE_3, SDL_SCANCODE_4, SDL_SCANCODE_5, SDL_SCANCODE_6, SDL_SCANCODE_7, SDL_SCANCODE_8, SDL_SCANCODE_9, SDL_SCANCODE_0,},

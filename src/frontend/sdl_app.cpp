@@ -55,13 +55,15 @@ App_SDL::~App_SDL() {
 
 
 int ThreadCore1(void* data) {
+	UNUSED(data);
 	return 0;
 }
 int ThreadCore2(void* data) {
+	UNUSED(data);
 	return 0;
 }
 
-bool App_SDL::OnInit() {
+bool App_SDL::Init() {
 
     if(SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         return false;
@@ -102,29 +104,25 @@ bool App_SDL::OnInit() {
 }
 
 int App_SDL::Run() {
-    if (OnInit() == false) {
+    if (Init() == false) {
         return -1;
     }
 
-    SDL_Event Event;
-
     while(Running) {
         timeFrameStart = SDL_GetTicks();
-        while(SDL_PollEvent(&Event)) {
-            OnEvent(&Event);
-        }
-        OnLoop();
-        OnRender();
+        HandleInput();
+        HandleMain();
+        HandleRender();
         timeFrameEnd = SDL_GetTicks();
         Sync();
     }
 
-    OnDeInit();
+    DeInit();
 
     return 0;
 }
 
-void App_SDL::OnDeInit() {
+void App_SDL::DeInit() {
 
 	SDL_DestroyTexture(WindowTexture);
 	WindowTexture = nullptr;
@@ -155,8 +153,16 @@ void App_SDL::OnEvent(SDL_Event* Event) {
     }
 }
 
+void App_SDL::HandleInput() {
+    SDL_Event Event;
+    while(SDL_PollEvent(&Event)) {
+        OnEvent(&Event);
+    }
 
-void App_SDL::OnLoop() {
+}
+
+
+void App_SDL::HandleMain() {
 
 	e->Advance(e->c->clock_rate / 60);
 	updateKeyboard(e->k);
@@ -165,7 +171,7 @@ void App_SDL::OnLoop() {
 
 }
 
-void App_SDL::OnRender() {
+void App_SDL::HandleRender() {
 
 	// clear screen
 	//SDL_RenderClear(WindowRenderer);

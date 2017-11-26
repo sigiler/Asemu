@@ -24,14 +24,14 @@ struct Emu {
 	void Init();
 	void DeInit();
 
-	//void PowerOn();
-	//void PowerOff();
-	//void Reset();
+	void PowerOn();
+	void PowerOff();
+	void Reset();
 
-	//void Run();
-	//void Pause();
-	//void Resume();
-	//void EndRun();
+	void Run();
+	void Pause();
+	void Resume();
+	void EndRun();
 
 	void Advance(u32 steps);
 

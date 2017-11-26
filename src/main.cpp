@@ -7,9 +7,7 @@
 App_SDL app;
 
 void test(void) {
-
 	//logger.log("start test");
-	printf("%i\n", 0);
 
 	memory* m = app.e->m;
 	// manually assembled code for bootstrapping
@@ -48,10 +46,42 @@ void test(void) {
 	}
 
 	// all ready to go
-
 	app.Run();
 
 	//logger.log("end test");
+}
+
+void test2() {
+	// preparation
+	Emu* e = new Emu;
+	e->Init();
+	cpu *c = e->c;
+	memory* m = e->m;
+	// load program into memory
+	u8 binary[99] = {
+		0x10, 0x00, 0x00, 0x01,    // 0x000000:  ldr a,1
+		0x11, 0xFF, 0xFF, 0xFF,    // 0x000004:  ldr b,-1
+		0x12, 0xFF, 0xFF, 0xFF,    // 0x000008:  ldr c,-1
+		0x0A, 0x00, 0x12,          // 0x000020:  add a, b, c
+	};
+	int binary_size = 99;
+	for (int i = 0; i < binary_size; i++) {
+		m->buffer[i] = binary[i];
+	}
+	// execute code
+	c->advance(10);
+	// test
+	if (c->regs.c != 16777215)
+		printf("error!\n");
+	// see result
+	printf("a=%i\n", (u32)c->regs.a);
+	printf("b=%i\n", (u32)c->regs.b);
+	printf("c=%i\n", (u32)c->regs.c);
+	printf("f=%#X\n", (u32)(u24)c->regs.fs);
+	printf("f.z=%u\n", c->regs.fs.f.z);
+	printf("f.c=%u\n", c->regs.fs.f.c);
+	printf("f.n=%u\n", c->regs.fs.f.n);
+	printf("f.v=%u\n", c->regs.fs.f.v);
 }
 
 

@@ -15,7 +15,7 @@ enum ComponentType {
 	COMP_CPU, COMP_MEM, COMP_MMU, COMP_PORTS, COMP_KEYS, COMP_SCREEEN,
 };
 
-// the C way
+// C style
 
 struct component {
 	u8 id;
@@ -37,7 +37,7 @@ struct board {
 	component* components;
 };
 
-// the C++ way way
+// C++ style
 
 class componentpp {
 	u8 id;

@@ -1,3 +1,4 @@
+
 # Asemu
 
 A simple emulator in C++ built around a custom designed 24 bits cpu.
@@ -6,7 +7,7 @@ Made as a practise for possibly programming an emulator of some real computer,
  transform into some toy project like a virtual console game
  or showcase a minimal operating system.
 
-Documentation is too incomplete and outdated to be worth sharing.
+Documentation will come when the design is stable.
 
 ## Currently working
 
@@ -14,12 +15,13 @@ Documentation is too incomplete and outdated to be worth sharing.
 * keyboard input
 * video and audio output
 
-## Future ideas
+## Future work
 
-* multiple cores
 * memory protection
+* multiple cores
 * more emulated hardware
-* Qt frontend
+* may have some optimizations
+* possibility of Qt frontend
 
 ## Dependencies
 

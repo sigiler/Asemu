@@ -22,7 +22,7 @@ keys::~keys() {
 }
 
 void keys::onPress(u8 keyCode) {
-	if (keyCode < 0 || keyCode > number) {
+	if (keyCode >= number) {
 		return;
 	}
 	state[keyCode] = 1;
@@ -30,7 +30,7 @@ void keys::onPress(u8 keyCode) {
 }
 
 void keys::onRelease(u8 keyCode) {
-	if (keyCode < 0 || keyCode > number) {
+	if (keyCode >= number) {
 		return;
 	}
 	state[keyCode] = 0;
