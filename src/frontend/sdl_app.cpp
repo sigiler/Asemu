@@ -1,5 +1,6 @@
 
 #include "sdl_app.hpp"
+#include "../emu.hpp"
 
 App_SDL::App_SDL() {
     Running = true;  // app, not the emulator
@@ -27,12 +28,6 @@ App_SDL::App_SDL() {
 
     e = new Emu;
 
-#ifdef MULTI_CORE
-    p1 = new cpu;
-    p2 = new cpu;
-    threadP1 = nullptr;
-    threadP2 = nullptr;
-#endif
 }
 
 App_SDL::~App_SDL() {
@@ -45,12 +40,6 @@ App_SDL::~App_SDL() {
     delete[] samples;
     delete e;
 
-#ifdef MULTI_CORE
-    delete p1;
-	delete p2;
-    threadP1 = nullptr;
-    threadP2 = nullptr;
-#endif
 }
 
 
@@ -92,13 +81,6 @@ bool App_SDL::Init() {
     SDL_PauseAudioDevice(audiodev, 0);  // start play audio
 
 	e->Init();
-
-#ifdef MULTI_CORE
-	p1 = new cpu;
-	threadP1 = SDL_CreateThread(ThreadCore1, "Extra Core 1", p1);
-	p2 = new cpu;
-	threadP2 = SDL_CreateThread(ThreadCore2, "Extra Core 2", p2);
-#endif
 
     return true;
 }

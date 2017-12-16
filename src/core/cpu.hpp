@@ -1,14 +1,16 @@
 
 #pragma once
 
-#include "../common/common_types.hpp"
-#include "../common/common_macros.hpp"
-
 #include <vector>
 #include <string>
 #include <cassert>
 
+#include "../common/common_macros.hpp"
+#include "../common/common_types.hpp"
 #include "../common/type_u24.hpp"
+#include "../common/type_b24.hpp"
+#include "../common/type_v24.hpp"
+
 #include "mem.hpp"
 #include "ports.hpp"
 
@@ -16,70 +18,35 @@ struct registers {
 
 	static const u8 number = 12;
 
-	u24 a;
-	u24 b;
-	u24 c;
-	u24 x;
-	u24 y;
-	u24 z;
+	union {
+		u24 r[12];
 
-	// assuming little endian and abusing undefined behaviour
-	union FlagsStatusRegister {
-		// register value
-		u24 val;
-		// flags
-		struct {
-			u32 uu : 20;  // other bits
-			u32 v : 1;    // overflow flag
-			u32 n : 1;    // negative flag
-			u32 z : 1;    // zero flag
-			u32 c : 1;    // carry flag
-		} f;
-		// status
-		struct {
-			u32 i : 1;    // in interrupt mode
-			u32 e : 1;    // in exception mode
-			u32 ie : 1;   // interrupts enabled
-			u32 ee : 1;   // exceptions enabled
-			u32 p : 1;    // in privileged mode
-			u32 v : 1;    // virtual memory enabled
-			u32 uu : 18;  // other bits
-		} s;
-		// imitate u24
-		inline operator u24() const { return val; }
-		inline FlagsStatusRegister& operator=(const u24 v) { val = v; return *this; }
-		FlagsStatusRegister() { val = 0; };
-	} fs;  // flags and status register
-	u24 pr;  // predicate register
-	u24 sp;  // stack pointer
-	u24 cp;  // code pointer (aka pc, ip)
-	u24 ip;  // interrupt pointer
-	u24 ep;  // exception pointer
+		RegView<0> a;
+		RegView<1> b;
+		RegView<2> c;
+		RegView<3> x;
+		RegView<4> y;
+		RegView<5> z;
 
-	u24* ref[12] = {&a, &b, &c, &x, &y, &z, &fs.val, &pr, &sp, &cp, &ip, &ep};
+		RegFlagView<6> fs;
+		RegView<7> tp;
+		RegView<8> sp;
+		RegView<9> cp;
+		RegView<10> ip;
+		RegView<11> ep;
 
-	inline u24& reg(u8 i) {
-		assert(i < 12);
-		return *ref[i];
+		RegViewRange<0, 6> gpr;
+		RegViewRange<6, 12> spr;
 	};
 
-	inline u24& gpr(u8 i) {
-		assert(i < 6);
-		return *ref[i];
-	};
-
-	inline u24& spr(u8 i) {
-		assert(i < 6);
-		return *ref[i+6];
-	};
-
+	registers() : r() {}
 };
 
 
-using instruction_callback = void (*) (struct cpu*);
+using instruction_exec = void (*) (struct cpu*);
 
 struct instructions {
-	instruction_callback* exec_table;
+	instruction_exec* exec_table;
 	u8* base_length;
 	u8* base_cycles;
 };
@@ -87,28 +54,31 @@ struct instructions {
 struct cpu {
 
 	registers regs;
-	instructions instrs;
+	const instruction_exec* instructions;
 	memory* mem;
 	ports* prt;
 
 	// properties
-	u64 clock_rate;      // number of cycles executed per second
-	u64 interrupt_rate;  // number of cycles needed to pass in order to interrupt fire
+	u64 clock_rate;
 
 	// state
-	bool running;
-	bool ended;
-	bool sleep;
-	u64 cyclesExecuted;        // number of executed cycles since restart or wrap
+	u8 mode;
+	u32 instr_fetch;
+	u64 cyclesExecuted;
+	u64 nextEvent;
+
+	// emulation state
+	bool ended = false;
+	bool running = false;
 
 	// report unexpected
 	void error(std::string description);
 
 	// read write operations
-	u8 read_byte(u32 a);
-	void write_byte(u32 a, u8 v);
-	u32 read_word(u32 a);
-	void write_word(u32 a, u32 v);
+	inline u8 read_byte(u32 a);
+	inline void write_byte(u32 a, u8 v);
+	inline u32 read_word(u32 a);
+	inline void write_word(u32 a, u32 v);
 	void push_word(u32 v);
 	u32 pop_word();
 
@@ -117,9 +87,19 @@ struct cpu {
 	u32 in_word(u32 p);
 	void out_word(u32 p, u32 v);
 
+	// fetching
+	inline void pre_fetch_byte();
+	inline u8 fetch_byte();
+	inline u8 fetch_next_byte();
+	inline u16 fetch_pair();
+	inline u32 fetch_word();
+	// decoding
+
 	// addressing modes
-	u32 read_reg_mode1(u8 r);
-	void write_reg_mode1(u8 r, u32 v);
+	u32 read_reg_mode1_word(u8 r);
+	void write_reg_mode1_word(u8 r, u32 v);
+	u8 read_reg_mode1_byte(u8 r);
+	void write_reg_mode1_byte(u8 r, u8 v);
 
 	// flags check
 	u8 conditions(u8 conditions);
@@ -127,14 +107,6 @@ struct cpu {
 	// interrupts
 	void interrupt();
 	void exception();
-
-	//
-	void raiseInterrupt(u8);
-
-	// steps
-	void fetch();
-	void decode();
-	void execute();
 
 	// public part
 	cpu();
@@ -157,39 +129,7 @@ struct cpu {
 };
 
 
-struct InterruptsExceptions {
-	// almost an interrupt/exception controller, dunno what to do here
-	// move to some sort of controller
-	// move to ports
-
-	enum InterruptCause {
-		Int_poweron, int_timer, int_keys, int_screen, int_speaker, int_rtc,
-		Exc_software, Exc_divby0, Exc_overflow, Exc_mem, exc_dbg,
-		Int_nmi, int_req,
-		arith_overflow, undefined_instr, syscall, external,
-	};
-
-	bool intr_enabled;  // master enable interrupt, mirrors flag?
-	bool excp_enabled;  // master enable exception, mirrors flag?
-	u32 ie_mask;    // determine what can trigger interrupt
-	u32 ie_ack;     // acknowledge by writing 1 here
-	// unstoppable interrupt?
-	// stay pending when masked or miss if masked and not acknowledge?
-
-	u32 cause;  // current interrupt cause
-	u32 where; // address where it was caused
-
-	u64 next_interrupt_cycle;  // cycle where next interrupt is scheduled
-
-	// unused code
-	//next_interrupt_cycle = cyclesExecuted + interrupt_rate;
-	// cyclesExecuted >= next_interrupt_cycle
-
-};
-
-
 // opcode mnemomics
-
 enum OPCODE {
 	NOP,
 	LDR,

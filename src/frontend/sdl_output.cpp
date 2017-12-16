@@ -1,5 +1,6 @@
 
 #include "sdl_output.hpp"
+
 #include <random>
 
 void updateScreen(SDL_Texture* texture, u32* pixels, screen* s) {

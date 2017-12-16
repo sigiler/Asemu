@@ -1,10 +1,11 @@
 
 #include "cpu.hpp"
-#include "../common/common_types.hpp"
+
 #include "../utils/logger.hpp"
+#include "../common/common_types.hpp"
 
 // table for opcodes base length in bytes
-u8 opcode_bytes[256] = {
+const u8 opcode_bytes[256] = {
 // _0,_1,_2,_3,_4,_5,_6,_7,_8,_9,_A,_B,_C,_D,_E,_F
 	1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 1, 1, // 0_
 	4, 4, 4, 4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 1_
@@ -25,7 +26,7 @@ u8 opcode_bytes[256] = {
 };
 
 // table for opcodes base duration in cycles
-u8 opcode_cycles[256] = {
+const u8 opcode_cycles[256] = {
 // X0,X1,X2,X3,X4,X5,X6,X7,X8,X9,XA,XB,XC,XD,XE,XF
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0X
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 1X
@@ -45,85 +46,154 @@ u8 opcode_cycles[256] = {
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // FX
 };
 
-// current opcode context
-// move this to cpu?
-struct opcode_atrib {
-	// fetch context
-	u8 byte[4];
-	// decode context
-	u8 type;
-	// execute context
-	u8 bytesUsed;
-	u8 cyclesUsed;
-};
-opcode_atrib opcode;
-
-
-// addressing modes helper
-
-u8 reg_no_inc_dec(u8 r) {
-	// no inc or dec
-	if (r <= REG_Z_ind)
-		return r;
-	else if (r == REG_A_ind_inc_b || r == REG_A_ind_dec_b ||
-             r == REG_A_ind_inc || r == REG_A_ind_dec)
-		return REG_A_ind;
-	else if (r == REG_X_ind_inc_b || r == REG_X_ind_dec_b ||
-             r == REG_X_ind_inc || r == REG_X_ind_dec)
-		return REG_X_ind;
-	else
-		return r;
-}
-
-u8 reg_a_or_x(u8 r) {
-	if (r == REG_A_ind_inc_b || r == REG_A_ind_dec_b ||
-	    r == REG_A_ind_inc || r == REG_A_ind_dec)
-		return REG_A_ind;
-	else if (r == REG_X_ind_inc_b || r == REG_X_ind_dec_b ||
-	    r == REG_X_ind_inc || r == REG_X_ind_dec)
-		return REG_X_ind;
-	else
-		return r;
-}
-
-u8 reg_a_x_step(u8 r) {
-	int step = 1;
-	if (r >= REG_A_ind_inc && r <= REG_X_ind_dec)
-		step = 3;
-	if (r == REG_A_ind_dec || r == REG_X_ind_dec ||
-        r == REG_X_ind_dec_b || r == REG_X_ind_dec_b)
-		step = -step;
-	return step;
-}
-
 // addressing modes
 
-u32 cpu::read_reg_mode1(u8 r) {
-	if (r <= REG_Z)
-		return regs.gpr(r);
-	if (r >= REG_A_ind && r <= REG_Z_ind)
-		return cpu::read_word(regs.gpr(r-REG_A_ind));
-	if (r >= REG_A_ind_inc && r <= REG_X_ind_dec_b) {
-		u32 value = cpu::read_word(regs.gpr(reg_a_or_x(r)));
-		regs.gpr(reg_a_or_x(r)) += reg_a_x_step(r);
-		return value;
-	} else {
-		cpu::error("bad read");
-		return 0;
+u32 cpu::read_reg_mode1_word(u8 r) {
+	switch (r) {
+		case REG_A:
+		case REG_B:
+		case REG_C:
+		case REG_X:
+		case REG_Y:
+		case REG_Z:
+			return regs.r[r];
+		case REG_A_ind:
+		case REG_B_ind:
+		case REG_C_ind:
+		case REG_X_ind:
+		case REG_Y_ind:
+		case REG_Z_ind:
+			return cpu::read_word(regs.r[r-REG_A_ind]);
+		case REG_A_ind_inc:
+			regs.r[REG_A] += 3;
+			return cpu::read_word(regs.r[REG_A]-3);
+		case REG_X_ind_inc:
+			regs.r[REG_A] += 3;
+			return cpu::read_word(regs.r[REG_X]-3);
+		case REG_A_ind_dec:
+			regs.r[REG_X] -= 3;
+			return cpu::read_word(regs.r[REG_A]+3);
+		case REG_X_ind_dec:
+			regs.r[REG_X] -= 3;
+			return  cpu::read_word(regs.r[REG_X]+3);
+		default:
+			cpu::error("invalid opcode decoding");
+			return 0;
 	}
 }
 
-void cpu::write_reg_mode1(u8 r, u32 v) {
-	if (r <= REG_Z)
-		regs.gpr(r) = v;
-	if (r >= REG_A_ind && r <= REG_Z_ind)
-		cpu::write_word(regs.gpr(r-REG_A_ind), v);
-	if (r >= REG_A_ind_inc && r <= REG_X_ind_dec_b) {
-		cpu::write_word(regs.gpr(reg_a_or_x(r)), v);
-		regs.gpr(reg_a_or_x(r)) += reg_a_x_step(r);
+void cpu::write_reg_mode1_word(const u8 r, const u32 v) {
+	switch (r) {
+		case REG_A:
+		case REG_B:
+		case REG_C:
+		case REG_X:
+		case REG_Y:
+		case REG_Z:
+			regs.r[r] = v;
+			break;
+		case REG_A_ind:
+		case REG_B_ind:
+		case REG_C_ind:
+		case REG_X_ind:
+		case REG_Y_ind:
+		case REG_Z_ind:
+			cpu::write_word(regs.r[r-REG_A_ind], v);
+			break;
+		case REG_A_ind_inc:
+			cpu::write_word(regs.r[REG_A], v);
+			regs.r[REG_A] += 3;
+			break;
+		case REG_X_ind_inc:
+			cpu::write_word(regs.r[REG_X], v);
+			regs.r[REG_A] += 3;
+			break;
+		case REG_A_ind_dec:
+			cpu::write_word(regs.r[REG_A], v);
+			regs.r[REG_X] -= 3;
+			break;
+		case REG_X_ind_dec:
+			cpu::write_word(regs.r[REG_X], v);
+			regs.r[REG_X] -= 3;
+			break;
+		default:
+			cpu::error("invalid opcode decoding");
+			break;
 	}
-	if (r > REG_X_ind_dec_b)
-		cpu::error("bad write");
+}
+
+u8 cpu::read_reg_mode1_byte(u8 r) {
+	switch (r) {
+		case REG_A:
+		case REG_B:
+		case REG_C:
+		case REG_X:
+		case REG_Y:
+		case REG_Z:
+			return regs.r[r] & 0xFF;
+		case REG_A_ind:
+		case REG_B_ind:
+		case REG_C_ind:
+		case REG_X_ind:
+		case REG_Y_ind:
+		case REG_Z_ind:
+			return cpu::read_byte(regs.r[r-REG_A_ind]);
+		case REG_A_ind_inc:
+			regs.r[REG_A] += 1;
+			return cpu::read_byte(regs.r[REG_A]-1);
+		case REG_X_ind_inc:
+			regs.r[REG_A] += 1;
+			return cpu::read_byte(regs.r[REG_X]-1);
+		case REG_A_ind_dec:
+			regs.r[REG_X] -= 1;
+			return cpu::read_byte(regs.r[REG_A]+1);
+		case REG_X_ind_dec:
+			regs.r[REG_X] -= 1;
+			return  cpu::read_byte(regs.r[REG_X]+1);
+		default:
+			cpu::error("invalid opcode decoding");
+			return 0;
+	}
+}
+
+void cpu::write_reg_mode1_byte(u8 r, u8 v) {
+	switch (r) {
+		case REG_A:
+		case REG_B:
+		case REG_C:
+		case REG_X:
+		case REG_Y:
+		case REG_Z:
+			regs.r[r] = (regs.r[r] & 0xFFFF00) | v;
+			break;
+		case REG_A_ind:
+		case REG_B_ind:
+		case REG_C_ind:
+		case REG_X_ind:
+		case REG_Y_ind:
+		case REG_Z_ind:
+			cpu::write_byte(regs.r[r-REG_A_ind], v);
+			break;
+		case REG_A_ind_inc:
+			cpu::write_byte(regs.r[REG_A], v);
+			regs.r[REG_A] += 1;
+			break;
+		case REG_X_ind_inc:
+			cpu::write_byte(regs.r[REG_X], v);
+			regs.r[REG_A] += 1;
+			break;
+		case REG_A_ind_dec:
+			cpu::write_byte(regs.r[REG_A], v);
+			regs.r[REG_X] -= 1;
+			break;
+		case REG_X_ind_dec:
+			cpu::write_byte(regs.r[REG_X], v);
+			regs.r[REG_X] -= 1;
+			break;
+		default:
+			cpu::error("invalid opcode decoding");
+			break;
+	}
 }
 
 u8 cpu::conditions(u8 conditions) {
@@ -131,7 +201,6 @@ u8 cpu::conditions(u8 conditions) {
 	bool cf = regs.fs.f.c;
 	bool nf = regs.fs.f.n;
 	bool vf = regs.fs.f.v;
-
 	switch (conditions) {
 		case always:
 			return 1;
@@ -165,127 +234,153 @@ u8 cpu::conditions(u8 conditions) {
 
 // instructions implementations
 
+// TODO split instructions further into parts, uses more switches, same applying to all other
+// TODO fix endianness in fetch and loads
+// TODO timings
+// TODO correct and test everything, again...
+
 void instr_stub(cpu* c) {
 	UNUSED(c);
 }
 
 void instr_nop(cpu* c) {
-	UNUSED(c);
-	// nothing happens
+	// no operation
+	c->regs.cp += 1;
+	c->cyclesExecuted += 1;
 }
 
 void instr_uop(cpu* c) {
+	// warn about this incident
+	c->error("unimplemented opcode");
 	// unimplemented opcode causes exception
 	c->exception();
-	// warn about this
-	c->error("unimplemented opcode");
+	c->regs.cp += 1;
+	c->cyclesExecuted += 1;
 }
 
 void instr_mov_r_ccc(cpu* c) {
 	u32 operand1, operand2;
-	operand1 = opcode.byte[0] & 0x0F;
-	operand2 = (opcode.byte[1] << 16) | (opcode.byte[2] << 8) | opcode.byte[3];
-	c->regs.gpr(operand1) = operand2;
+	operand1 = c->instr_fetch & 0x0F;
+	operand2 = c->fetch_word();
+	c->regs.r[operand1] = operand2;
+	c->regs.cp += 4;
 }
 
 void instr_mov_r_c(cpu* c) {
 	u32 operand1, operand2;
-	operand1 = opcode.byte[0] & 0x0F;
-	operand2 = opcode.byte[1];
-	c->regs.gpr(operand1) = (operand2 & 0xFF) | (c->regs.gpr(operand1) & 0xFFFF00);
+	operand1 = c->instr_fetch & 0x0F;
+	operand2 = c->fetch_byte();
+	c->write_reg_mode1_byte(operand1, operand2);
+	c->regs.cp += 2;
 }
 
 void instr_mov_rr_rr_w(cpu* c) {
 	u32 operand1, operand2, value;
-	operand1 = (opcode.byte[1] >> 4) & 0x0F;
-	operand2 = opcode.byte[1] & 0x0F;
-	value = c->read_reg_mode1(operand2);
-	c->write_reg_mode1(operand1, value);
+	u8 fetch2 = c->fetch_byte();
+	operand1 = (fetch2 >> 4) & 0x0F;
+	operand2 = fetch2 & 0x0F;
+	value = c->read_reg_mode1_word(operand2);
+	c->write_reg_mode1_word(operand1, value);
+	c->regs.cp += 2;
 }
 
 void instr_mov_rr_rr_b(cpu* c) {
 	u32 operand1, operand2, value;
-	operand1 = (opcode.byte[1] >> 4) & 0x0F;
-	operand2 = opcode.byte[1] & 0x0F;
-	value = c->read_reg_mode1(operand2) & 0xFF;
-	value |= c->read_reg_mode1(reg_no_inc_dec(operand1)) & 0xFFFF00;
-	c->write_reg_mode1(operand1, value);
+	u8 fetch2 = c->fetch_byte();
+	operand1 = (fetch2 >> 4) & 0x0F;
+	operand2 = fetch2 & 0x0F;
+	value = c->read_reg_mode1_byte(operand2);
+	c->write_reg_mode1_byte(operand1, value);
+	c->regs.cp += 2;
 }
 
 void instr_mov_rs_rs(cpu* c) {
 	u32  operand1, operand2;
-	operand1 = (opcode.byte[1] >> 4) & 0x0F;
-	operand2 = opcode.byte[1] & 0x0F;
-	c->regs.reg(operand1) = c->regs.reg(operand2);
+	u8 fetch2 = c->fetch_byte();
+	operand1 = (fetch2 >> 4) & 0x0F;
+	operand2 = fetch2 & 0x0F;
+	c->regs.r[operand1] = c->regs.r[operand2];
+	c->regs.cp += 2;
 }
 
 #define STACK_REGS_NUM 8
 u32 masks[STACK_REGS_NUM] = {RS_A, RS_B, RS_C, RS_X, RS_Y, RS_Z, RS_FS, RS_SP};
 
 void instr_push(cpu* c) {
-	u32 operand1 = opcode.byte[1];
+	u8 fetch2 = c->fetch_byte();
+	u32 operand1 = fetch2;
 	for (int reg_index = 0; reg_index < STACK_REGS_NUM; reg_index++) {
 		if (operand1 & masks[reg_index]) {
-			c->push_word(c->regs.reg(reg_index));
+			c->push_word(c->regs.r[reg_index]);
 		}
 	}
-
+	c->regs.cp += 2;
 }
 
 void instr_pop(cpu* c) {
-	u32 operand1 = opcode.byte[1];
+	u8 fetch2 = c->fetch_byte();
+	u32 operand1 = fetch2;
 	for (int reg_index = STACK_REGS_NUM - 1; reg_index >= 0; reg_index--) {
 		if (operand1 & masks[reg_index]) {
-			c->regs.reg(reg_index) = c->pop_word();
+			c->regs.r[reg_index] = c->pop_word();
 		}
 	}
+	c->regs.cp += 2;
 }
 
 void instr_inw(cpu* c) {
-	u32 operand1 = (opcode.byte[1] >> 4) & 0x0F;
-	u32 operand2 = opcode.byte[1] & 0x0F;
-	c->write_reg_mode1(operand1, c->in_word(operand2));
+	u8 fetch2 = c->fetch_byte();
+	u32 operand1 = (fetch2 >> 4) & 0x0F;
+	u32 operand2 = fetch2 & 0x0F;
+	c->write_reg_mode1_word(operand1, c->in_word(operand2));
+	c->regs.cp += 2;
 }
 
 void instr_outw(cpu* c) {
-	u32 operand1 = (opcode.byte[1] >> 4) & 0x0F;
-	u32 operand2 = opcode.byte[1] & 0x0F;
-	c->out_word(c->read_reg_mode1(operand1), c->read_reg_mode1(operand2));
+	u8 fetch2 = c->fetch_byte();
+	u32 operand1 = (fetch2 >> 4) & 0x0F;
+	u32 operand2 = fetch2 & 0x0F;
+	c->out_word(c->read_reg_mode1_word(operand1), c->read_reg_mode1_word(operand2));
+	c->regs.cp += 2;
 }
 
 void instr_inb(cpu* c) {
-	u32 operand1 = (opcode.byte[1] >> 4) & 0x0F;
-	u32 operand2 = opcode.byte[1] & 0x0F;
-	c->write_reg_mode1(operand1, c->in_byte(operand2));
+	u8 fetch2 = c->fetch_byte();
+	u32 operand1 = (fetch2 >> 4) & 0x0F;
+	u32 operand2 = fetch2 & 0x0F;
+	c->write_reg_mode1_byte(operand1, c->in_byte(operand2));
+	c->regs.cp += 2;
 }
 
 void instr_outb(cpu* c) {
-	u32 operand1 = (opcode.byte[1] >> 4) & 0x0F;
-	u32 operand2 = opcode.byte[1] & 0x0F;
-	c->out_byte(c->read_reg_mode1(operand1), c->read_reg_mode1(operand2));
+	u8 fetch2 = c->fetch_byte();
+	u32 operand1 = (fetch2 >> 4) & 0x0F;
+	u32 operand2 = fetch2 & 0x0F;
+	c->out_byte(c->read_reg_mode1_byte(operand1), c->read_reg_mode1_byte(operand2));
+	c->regs.cp += 2;
 }
 
 
 // arithmetic operations
-using f24 = registers::FlagsStatusRegister;
+
+// TODO fix f24 definition to be nicer
+using f24 = RegFlagView<0>;
 
 void word_add(u24* r, f24* f, u24 a, u24 b) {
-	u24 carry = 0;
-	u24 overflow = ~(a ^ b) & (a ^ *r);
-	*r = a + b + carry;
+	*r = a + b;
 	(*f).f.z = *r == 0;
 	(*f).f.n = *r >> 23;
-	(*f).f.v = ((1 << 23) & (overflow)) ? 1 : 0;
-	(*f).f.c = ((1 << 23) & (overflow ^ a ^ b ^ *r)) ? 1 : 0;
+	//u24 overflow = ~(a ^ b) & (a ^ *r);
+	//(*f).f.v = ((1 << 23) & (overflow)) ? 1 : 0;
+	//(*f).f.c = ((1 << 23) & (overflow ^ a ^ b ^ *r)) ? 1 : 0;
 }
 void word_adc(u24* r, f24* f, u24 a, u24 b) {
-	u24 carry = (*f).f.c ? 1 : 0;
-	u24 overflow = ~(a ^ b) & (a ^ *r);
-	*r = a + b + carry;
+	*r = a + b + (*f).f.c;
 	(*f).f.z = *r == 0;
 	(*f).f.n = *r >> 23;
-	(*f).f.v = ((1 << 23) & (overflow)) ? 1 : 0;
-	(*f).f.c = ((1 << 23) & (overflow ^ a ^ b ^ *r)) ? 1 : 0;
+	//u24 overflow = ~(a ^ b) & (a ^ *r);
+	//(*f).f.v = ((1 << 23) & (overflow)) ? 1 : 0;
+	//(*f).f.c = ((1 << 23) & (overflow ^ a ^ b ^ *r)) ? 1 : 0;
 }
 void word_sub(u24* r, f24* f, u24 a, u24 b) {
 	u24 carry = 0;
@@ -424,17 +519,17 @@ void word_abs(u24* r, f24* f, u24 a) {
 }
 
 
-typedef void (*alu2_callback)(u24*, f24*, u24, u24);
-typedef void (*alu1_callback)(u24*, f24*, u24);
+using alu2_callback = void (*)(u24*, f24*, u24, u24);
+using alu1_callback = void (*)(u24*, f24*, u24);
 
-alu2_callback alu2_op[] = {
+const alu2_callback alu2_op[] = {
 	&word_add, &word_sub, &word_mul, &word_div, &word_rem,
 	&word_and, &word_or, &word_xor,
 	&word_shr, &word_shl,
 	&word_ror, &word_rol, &word_rcr, &word_rcl,
 };
 
-alu1_callback alu1_op[] = {
+const alu1_callback alu1_op[] = {
 	&word_neg, &word_not, &word_abs,
 };
 
@@ -442,65 +537,69 @@ void instr_alu_r_rr_rr(cpu* c) {
 	u32 operation, operand1, operand2, operand3;
 	u24 result, a, b;
 	f24 newflags;
-	operation = (opcode.byte[1] >> 4) & 0x0F;
-	operand1 = opcode.byte[1] & 0x0F;
-	operand2 = (opcode.byte[2] >> 4) & 0x0F;
-	operand3 = opcode.byte[2] & 0x0F;
+	u8 fetch2 = c->fetch_byte();
+	operation = (fetch2 >> 4) & 0x0F;
+	operand1 = fetch2 & 0x0F;
+	operand2 = (c->fetch_next_byte() >> 4) & 0x0F;
+	operand3 = c->fetch_next_byte() & 0x0F;
 	newflags = c->regs.fs;
-	a = c->read_reg_mode1(operand2);
-	b = c->read_reg_mode1(operand3);
+	a = c->read_reg_mode1_word(operand2);
+	b = c->read_reg_mode1_word(operand3);
 	alu2_op[operation](&result, &newflags, a, b);
 	if (operand1 < 6) {
-		c->write_reg_mode1(operand1, result);
+		c->write_reg_mode1_word(operand1, result);
 		c->regs.fs = newflags;
 	} else if (operand1 == 6) {
 		c->regs.fs = newflags;
 	} else if(operand1 == 7) {
-		c->write_reg_mode1(operand2, result);
+		c->write_reg_mode1_word(operand2, result);
 	}
+	c->regs.cp += 3;
 }
 
 void instr_alu_r_rr(cpu* c) {
 	u32 operation, operand1, operand2;
 	u24 result, a;
 	f24 newflags;
-	operation = opcode.byte[0] - 0xAA;
-	operand1 = (opcode.byte[1] >> 4) & 0x0F;
-	operand2 = opcode.byte[1] & 0x0F;
-	a = c->read_reg_mode1(a);
+	u8 fetch2 = c->fetch_byte();
+	operation = c->instr_fetch - 0xAA;
+	operand1 = (fetch2 >> 4) & 0x0F;
+	operand2 = fetch2 & 0x0F;
+	a = c->read_reg_mode1_word(a);
 	alu1_op[operation](&result, &newflags, a);
 	if (operand1 < 6) {
-		c->write_reg_mode1(operand1, result);
+		c->write_reg_mode1_word(operand1, result);
 		c->regs.fs = newflags;
 	} else if (operand1 == 6) {
 		c->regs.fs = newflags;
 	} else if(operand1 == 7) {
-		c->write_reg_mode1(operand2, result);
+		c->write_reg_mode1_word(operand2, result);
 	}
+	c->regs.cp += 2;
 }
 
 void instr_jc_ff_ccc(cpu* c) {
 	u32 operation, operand1, operand2;
-	operation = opcode.type < 0xC0 ? JMP : CALL;
-	operand1 = opcode.byte[0] & 0x0F;
-	operand2 = (opcode.byte[1] << 16) | (opcode.byte[2] << 8) | opcode.byte[3];
+	operation = c->instr_fetch < 0xC0 ? JMP : CALL;
+	operand1 = c->instr_fetch & 0x0F;
+	operand2 = c->fetch_word();
+	c->regs.cp += 4;
 	if (c->conditions(operand1)) {
-		c->regs.cp += opcode.bytesUsed;
 		if (operation == CALL) {
 			c->push_word(c->regs.cp);
 		}
 		c->regs.cp = operand2;
-		opcode.bytesUsed = 0;
 	}
 }
 
 void instr_jc_ff_cc(cpu* c) {
 	u32 operation, operand1, operand2;
-	operation = opcode.type < 0xC0 ? JMP : CALL;
-	operand1 = opcode.byte[1] & 0xF0;
-	operand2 = ((opcode.byte[1] & 0x0F) << 8) | opcode.byte[2];
+	operation = c->instr_fetch < 0xC0 ? JMP : CALL;
+	u8 fetch2 = c->fetch_byte();
+	operand1 = fetch2 & 0xF0;
+	operand2 = ((fetch2 & 0x0F) << 8) | c->fetch_next_byte();
+	c->regs.cp += 3;
 	if (c->conditions(operand1)) {
-		c->regs.cp += opcode.bytesUsed;
 		if (operation == CALL) {
 			c->push_word(c->regs.cp);
 		}
@@ -509,63 +608,67 @@ void instr_jc_ff_cc(cpu* c) {
 		} else {
 			c->regs.cp += operand2;
 		}
-		opcode.bytesUsed = 0;
 	}
 }
 
 void instr_jc_ff_r(cpu* c) {
 	u32 operation, operand1, operand2;
-	operation = opcode.type < 0xC0 ? JMP : CALL;
-	operand1 = (opcode.byte[1] >> 4) & 0x0F;
-	operand2 = opcode.byte[1] & 0x0F;
+	operation = c->instr_fetch < 0xC0 ? JMP : CALL;
+	u8 fetch2 = c->fetch_byte();
+	operand1 = (fetch2 >> 4) & 0x0F;
+	operand2 = fetch2 & 0x0F;
+	c->regs.cp += 2;
 	if (c->conditions(operand1)) {
 		if (operation == CALL) {
 			c->push_word(c->regs.cp);
 		}
-		c->regs.cp = c->read_reg_mode1(operand2);
-		opcode.bytesUsed = 0;
+		c->regs.cp = c->read_reg_mode1_word(operand2);
 	}
 }
 
 void instr_ret_ff(cpu* c) {
-	u32 operand1;
-	operand1 = (opcode.byte[1] & 0xF0) >> 4;
+	u8 fetch2 = c->fetch_byte();
+	u8 operand1 = (fetch2 & 0xF0) >> 4;
+	c->regs.cp += 1;
 	if (c->conditions(operand1)) {
 		c->regs.cp = c->pop_word();
-		opcode.bytesUsed = 0;
 	}
 }
 
 void instr_fint(cpu* c) {
 	c->interrupt();
+	c->regs.cp += 1;
 }
 
 void instr_fexc(cpu* c) {
 	c->exception();
+	c->regs.cp += 1;
 }
 
 void instr_rets(cpu* c) {
 	c->regs.cp = c->pop_word();
 	c->regs.fs.s.i = 0;
 	c->regs.fs.s.e = 0;
-	opcode.bytesUsed = 0;
+	c->regs.cp += 1;
 }
 
 void instr_dint(cpu* c) {
 	c->regs.fs.s.ie = 0;
+	c->regs.cp += 1;
 }
 
 void instr_eint(cpu* c) {
 	c->regs.fs.s.ee = 0;
+	c->regs.cp += 1;
 }
 
 void instr_slp(cpu* c) {
-	c->sleep = true;
-	// alternative implementation: jump back to slp until interrupt is made between
+	c->mode = 0;
+	c->regs.cp += 1;
 }
 
 // table for instruction set callbacks
-instruction_callback isa_table[256] = {
+const instruction_exec isa_table[256] = {
 	// X0, X1, X2, X3, X4, X5, X6, X7
 	// X8, X9, XA, XB, XC, XD, XE, XF
 	instr_nop, instr_mov_rr_rr_w, instr_mov_rr_rr_b, instr_mov_rs_rs, instr_push, instr_pop, instr_inw, instr_outw, // 0X
@@ -606,31 +709,20 @@ instruction_callback isa_table[256] = {
 cpu::cpu() {
 
 	// reset everything to defaults
-	for (int i = 0; i < regs.number; i++) {
-		regs.reg(i) = 0;
+	for (u8 i = 0; i < regs.number; i++) {
+		regs.r[i] = 0;
 	}
-
-	//    isa_table[0x00] = instr_stub;
-	// opcode_bytes[0x00] = 1;
-	//opcode_cycles[0x00] = 1;
-
-	instrs.exec_table = isa_table;
-	instrs.base_length = opcode_bytes;
-	instrs.base_cycles = opcode_cycles;
+	instructions = isa_table;
 
 	mem = nullptr;
 	prt = nullptr;
 
-	clock_rate = 1000000;           // 1M Hz
-	//clock_rate = 1024 * 1024;       // 2^20 = 1048576 Hz
 	clock_rate = 16 * 1024 * 1024;  // 2^24 = 16777216 Hz
 
-	interrupt_rate = clock_rate / 60;
-
-	ended = false;
-	running = false;
-	sleep = false;
+	mode = 0;
+	instr_fetch = 0;
 	cyclesExecuted = 0;
+	nextEvent = 0;
 
 }
 
@@ -638,34 +730,60 @@ cpu::~cpu() {
 
 }
 
-// used to log about unusual circunstances
+// used to log about unusual circumstances
 void cpu::error(std::string description) {
-	logger.log(description);
+	UNUSED(description);
+	//logger.log(description);
 }
 
-u8 cpu::read_byte(u32 a) {
-	a = a & 0xFFFFFF;
-	return mem->read_byte(a);
+inline void cpu::pre_fetch_byte() {
+	// actually fetches byte at cp
+	instr_fetch = mem->buffer[regs.cp];
 }
 
-void cpu::write_byte(u32 a, u8 v) {
-	a = a & 0xFFFFFF;
-	mem->write_byte(a, v);
+inline u8 cpu::fetch_byte() {
+	// actually fetches next byte
+	return mem->buffer[regs.cp+1];
 }
 
+inline u8 cpu::fetch_next_byte() {
+	// actually fetches next next byte
+	return mem->buffer[regs.cp+2];
+}
 
+inline u16 cpu::fetch_pair() {
+	// actually fetches next byte pair
+	return mem->buffer[regs.cp+1] | (mem->buffer[regs.cp+2] << 8);
+}
 
-u32 cpu::read_word(u32 a) {
-	u32 value = cpu::read_byte(a);
-	value |= cpu::read_byte(a + 1) << 8;
-	value |= cpu::read_byte(a + 2) << 16;
+inline u32 cpu::fetch_word() {
+	// actually fetches next word
+	u32 addr = regs.cp;
+	u32 value = mem->buffer[addr+3];
+	value |= mem->buffer[addr+2] << 8;
+	value |= mem->buffer[addr+1] << 16;
 	return value;
 }
 
-void cpu::write_word(u32 a, u32 v) {
-	cpu::write_byte(a, v & 0xFF);
-	cpu::write_byte(a + 1, (v >> 8) & 0xFF);
-	cpu::write_byte(a + 2, (v >> 16) & 0xFF);
+inline u8 cpu::read_byte(u32 a) {
+	return mem->buffer[a];
+}
+
+inline void cpu::write_byte(u32 a, u8 v) {
+	mem->buffer[a] = v;
+}
+
+inline u32 cpu::read_word(u32 a) {
+	u32 valueO = mem->buffer[a];
+	valueO |= mem->buffer[a+1] << 8;
+	valueO |= mem->buffer[a+2] << 16;
+	return valueO;
+}
+
+inline void cpu::write_word(u32 a, u32 v) {
+	mem->buffer[a] = v & 0xFF;
+	mem->buffer[a+1] = (v >> 8) & 0xFF;
+	mem->buffer[a+2] = (v >> 16) & 0xFF;
 }
 
 void cpu::push_word(u32 value) {
@@ -696,31 +814,17 @@ void cpu::out_word(u32 p, u32 v) {
 }
 
 void cpu::interrupt() {
-	opcode.byte[0] = 0;
-	opcode.byte[1] = 0;
-	opcode.byte[2] = 0;
-	opcode.byte[3] = 0;
-	opcode.bytesUsed = 0;
-	opcode.cyclesUsed = 1;
 	cpu::push_word(regs.cp);
 	regs.cp = regs.ip;
 	regs.fs.s.i = 1;
 	cyclesExecuted += 1;
-	cpu::sleep = false;
 }
 
 void cpu::exception() {
-	opcode.byte[0] = 0;
-	opcode.byte[1] = 0;
-	opcode.byte[2] = 0;
-	opcode.byte[3] = 0;
-	opcode.bytesUsed = 0;
-	opcode.cyclesUsed = 1;
 	cpu::push_word(regs.cp);
 	regs.cp = regs.ep;
 	regs.fs.s.e = 1;
 	cyclesExecuted += 1;
-	cpu::sleep = false;
 }
 
 void cpu::power() {
@@ -729,73 +833,29 @@ void cpu::power() {
 
 void cpu::reset() {
 	// reset registers
-	for (int i = 0; i < regs.number; i++) {
-		regs.reg(i) = 0;
+	for (u8 i = 0; i < regs.number; i++) {
+		regs.r[i] = 0;
 	}
 	// reset state
 	cyclesExecuted = 0;
 }
 
-// fetch current executing instruction
-void cpu::fetch() {
-	u32 cp = regs.cp;
-	opcode.byte[0] = cpu::read_byte(cp);
-	opcode.byte[1] = cpu::read_byte(cp + 1);
-	opcode.byte[2] = cpu::read_byte(cp + 2);
-	opcode.byte[3] = cpu::read_byte(cp + 3);
-	//u32 value = opcode.byte[0] << 24;
-	//value |= opcode.byte[1] << 16;
-	//value |= opcode.byte[2] << 8;
-	//value |= opcode.byte[3];
-}
-
-// decode current executing instruction
-void cpu::decode() {
-	opcode.type = opcode.byte[0];
-}
-
-// execute the opcode after decoding
-void cpu::execute() {
-	opcode.bytesUsed = instrs.base_length[opcode.type];
-	opcode.cyclesUsed = instrs.base_cycles[opcode.type];
-	instrs.exec_table[opcode.type](this);
-	regs.cp += opcode.bytesUsed;
-	cyclesExecuted += opcode.cyclesUsed;
-}
-
 void cpu::step() {
-	bool interrupt_pending = false;
-	bool exception_pending = false;
-	if (!sleep && !interrupt_pending && !exception_pending) {
-		cpu::fetch();
-		cpu::decode();
-		cpu::execute();
-	} else if (regs.fs.s.ie && interrupt_pending) {
-		cpu::interrupt();
-	} else if (regs.fs.s.ee && exception_pending) {
-		cpu::exception();
-	} else if (sleep) {
-		opcode.cyclesUsed = 1;
-		cyclesExecuted += 1;
-	}
+	u32 cp = regs.cp;
+	instr_fetch = mem->buffer[cp];
+	instructions[instr_fetch](this);
 }
 
 u64 cpu::advance(u64 amount) {
 
-	u64 cyclesRemaining = amount;
-	u64 cyclesExceeded = 0;
+	s64 cyclesRemaining = amount;
 
 	while (cyclesRemaining > 0) {
 		cpu::step();
-		if (cyclesRemaining > opcode.cyclesUsed) {
-			cyclesRemaining -= opcode.cyclesUsed;
-		} else {
-			cyclesExceeded = opcode.cyclesUsed - cyclesRemaining;
-			cyclesRemaining = 0;
-		}
+		cyclesRemaining -= 1;
 	}
 
-	return cyclesExceeded;
+	return -cyclesRemaining;
 }
 
 void cpu::run() {
@@ -804,10 +864,6 @@ void cpu::run() {
 		if (running) {
 			cpu::step();
 		}
-		// implement a run with limit and/or sync capabilities?
-		//sync_delay();
-		// implement with condition to end?
-		//ended = end_cond(this);
 	}
 }
 
@@ -828,7 +884,7 @@ void cpu::save(std::vector<u8> buf) {
 	buf.reserve(cpu_size);
 	u32 r;
 	for (u8 i = 0; i < regs.number; i++) {
-		r = regs.reg(i);
+		r = regs.r[i];
 		buf[3*i+0] = r & 0xFF;
 		buf[3*i+1] = (r >> 8) & 0xFF;
 		buf[3*i+2] = (r >> 16) & 0xFF;
@@ -844,6 +900,6 @@ void cpu::load(std::vector<u8> buf) {
 		r |= buf[3*i+0];
 		r |= buf[3*i+1] << 8;
 		r |= buf[3*i+1] << 16;
-		regs.reg(i) = r;
+		regs.r[i] = r;
 	}
 }

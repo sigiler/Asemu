@@ -1,14 +1,18 @@
 
 #pragma once
 
+#include <string>
+
 struct Config {
 
 	Config();
 	virtual ~Config();
 
 	virtual void resetDefaults();
-	virtual void get();
-	virtual void set();
-	virtual void load();
-	virtual void save();
+
+	virtual std::string get(std::string setting);
+	virtual void set(std::string setting, std::string value);
+
+	virtual void save(std::string file);
+	virtual void load(std::string file);
 };

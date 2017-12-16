@@ -4,7 +4,14 @@
 #include <fstream>
 #include <iostream>
 
-#include "core/board.hpp"
+#include "core/cpu.hpp"
+#include "core/mem.hpp"
+#include "core/ports.hpp"
+#include "core/keys.hpp"
+#include "core/screen.hpp"
+#include "core/speaker.hpp"
+#include "core/timer.hpp"
+
 
 struct Emu {
 

@@ -3,15 +3,13 @@
 
 #include <SDL2/SDL.h>
 
-#include "../common/common_macros.hpp"
-#include "../app.hpp"
 #include "../emu.hpp"
-#include "sdl_input.hpp"
-#include "sdl_output.hpp"
 
+#include "../app.hpp"
 
-// move this to proper place
-//#define MULTI_CORE
+#include "../frontend/sdl_input.hpp"
+#include "../frontend/sdl_output.hpp"
+
 
 class App_SDL : App {
 
@@ -38,13 +36,6 @@ public:
 	u32 timeFrameStart;
 	u32 timeFrameEnd;
 	u32 fps;              // current fps
-
-#ifdef MULTI_CORE
-	cpu* p1;
-	SDL_Thread* threadP1;
-	cpu* p2;
-	SDL_Thread* threadP2;
-#endif
 
 public:
 	App_SDL();
