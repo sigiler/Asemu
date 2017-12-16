@@ -23,7 +23,7 @@ Documentation will come when the design is stable.
 * multiple cores
 * networking
 * more emulated hardware
-* may have some optimizations
+* more optimizations
 * possibility of Qt front-end
 
 ## Dependencies
