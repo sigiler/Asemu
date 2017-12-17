@@ -5,11 +5,11 @@
 
 #include "cpu.hpp"
 #include "keys.hpp"
-#include "mem.hpp"
-#include "ports.hpp"
 #include "screen.hpp"
 #include "speaker.hpp"
 #include "timer.hpp"
+#include "mem.hpp"
+#include "ports.hpp"
 
 enum ComponentType {
 	COMP_CPU, COMP_MEM, COMP_MMU, COMP_PORTS, COMP_KEYS, COMP_SCREEEN,

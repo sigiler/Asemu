@@ -7,8 +7,8 @@
 
 #include "../app.hpp"
 
-#include "../frontend/sdl_input.hpp"
-#include "../frontend/sdl_output.hpp"
+#include "sdl_input.hpp"
+#include "sdl_output.hpp"
 
 
 class App_SDL : App {

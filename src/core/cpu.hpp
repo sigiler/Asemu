@@ -28,12 +28,29 @@ struct registers {
 		RegView<4> y;
 		RegView<5> z;
 
-		RegFlagView<6> fs;
-		RegView<7> tp;
-		RegView<8> sp;
-		RegView<9> cp;
-		RegView<10> ip;
-		RegView<11> ep;
+		union {
+			RegFlagView<6> fs;  // flags and status register
+			union {
+				FlagView<6, 23> p;   // in privileged mode
+				FlagView<6, 22> i;   // in interrupt mode
+				FlagView<6, 21> e;   // in exception mode
+				FlagView<6, 20> ie;  // interrupts enabled
+				FlagView<6, 19> ee;  // exceptions enabled
+				FlagView<6, 18> v;   // virtual memory enabled
+			} s;
+			union {
+				FlagView<6, 3> v;  // overflow flag
+				FlagView<6, 2> n;  // negative flag
+				FlagView<6, 1> z;  // zero flag
+				FlagView<6, 0> c;  // carry flag
+			} f;
+		};
+
+		RegView<7> tp;   // trap pointer
+		RegView<8> ip;  // interrupt pointer
+		RegView<9> ep;  // exception pointer
+		RegView<10> sp;   // stack pointer
+		RegView<11> cp;   // code pointer (aka program counter)
 
 		RegViewRange<0, 6> gpr;
 		RegViewRange<6, 12> spr;
@@ -43,29 +60,23 @@ struct registers {
 };
 
 
-using instruction_exec = void (*) (struct cpu*);
-
-struct instructions {
-	instruction_exec* exec_table;
-	u8* base_length;
-	u8* base_cycles;
-};
+using instruction = void (*) (struct cpu*);
 
 struct cpu {
 
 	registers regs;
-	const instruction_exec* instructions;
 	memory* mem;
 	ports* prt;
+	const instruction* instr_set;
 
 	// properties
-	u64 clock_rate;
+	u64 clock_rate;  // number of cycles executed per second
 
 	// state
 	u8 mode;
-	u32 instr_fetch;
-	u64 cyclesExecuted;
-	u64 nextEvent;
+	u32 opcode;
+	u64 cyclesExecuted;  // number of executed cycles since restart or wrap
+	u64 cycleNextEvent;
 
 	// emulation state
 	bool ended = false;
@@ -130,7 +141,7 @@ struct cpu {
 
 
 // opcode mnemomics
-enum OPCODE {
+enum OPCODE : u8 {
 	NOP,
 	LDR,
 	LDB,
@@ -163,23 +174,23 @@ enum OPCODE {
 	SPE2,
 };
 
-// operand types
+// operand decode group/type
 enum GROUP {
-	R_Cw,     // LDR
-	R_Cb,     // LDB
-	RR_RR_w,  // LDR
-	RR_RR_b,  // LDB
-	RS_RS,    // LDS
-	R_RR_RR,  // ADD, SUB, MUL, DIV, REM, rotations and shifts
-	R_RR,     // NEG, NOT
-	FF_C24,   // JMP, CALL FF,abs
-	FF_C20,   // JMP, CALL FF,rel
-	FF_C16,   // JMP, CALL FF,rel
-	FF_C12,   // JMP, CALL FF,rel
-	FF_C8,    // JMP, CALL FF,rel
-	FF_REG,   // JMP, CALL reg
-	FF,       // RET
-	REGSET,   // PUSH POP
+	R_Cw,       // LDR
+	R_Cb,       // LDB
+	RR_RR_w,    // LDR
+	RR_RR_b,    // LDB
+	RS_RS,      // LDS
+	R_RR_RR,    // ADD, SUB, MUL, DIV, REM, rotations and shifts
+	R_RR,       // NEG, NOT
+	FF_C24,     // JMP, CALL FF,abs
+	FF_C20,     // JMP, CALL FF,rel
+	FF_C16,     // JMP, CALL FF,rel
+	FF_C12,     // JMP, CALL FF,rel
+	FF_C8,      // JMP, CALL FF,rel
+	FF_REG,     // JMP, CALL reg
+	FF,         // RET
+	REGSET,     // PUSH POP
 	RR_RR_port, // IN OUT
 
 	IMPLICIT,
@@ -189,19 +200,6 @@ enum GROUP {
 
 
 // registers and addressing modes
-
-enum REGS : u8 {
-	RGS_A,
-	RGS_B,
-	RGS_C,
-	RGS_X,
-	RGS_Y,
-	RGS_Z,
-	RGS_FS,
-	RGS_SP,
-	RGS_CP,
-	RGS_IP,
-};
 
 enum REG_MODE : u8 {
 	REG_A = 0,
@@ -235,6 +233,21 @@ enum REG_MODE : u8 {
 	REG_FS
 };
 
+enum REGINDEX : u8 {
+	R_A,
+	R_B,
+	R_C,
+	R_X,
+	R_Y,
+	R_Z,
+	R_FS,
+	R_TP,
+	R_IP,
+	R_EP,
+	R_SP,
+	R_CP,
+};
+
 enum REGSET : u8 {
 	RS_A = 1 << 0,
 	RS_B = 1 << 1,
@@ -246,7 +259,7 @@ enum REGSET : u8 {
 	RS_SP = 1 << 7
 };
 
-// flags
+// flags and conditions
 
 enum FLAGS : u32 {
 	Z_MASK = 1 << 3,
@@ -255,8 +268,7 @@ enum FLAGS : u32 {
 	N_MASK = 1 << 0,
 };
 
-enum CONDS_FLAGS : u8 {
-	// conditions
+enum CONDS : u8 {
 	always = 0x00,
 	eq,
 	ne,
@@ -269,7 +281,6 @@ enum CONDS_FLAGS : u8 {
 	ae,
 	be,
 	random_c,
-	// flags
 	carry,
 	noncarry,
 	zero,
@@ -278,6 +289,5 @@ enum CONDS_FLAGS : u8 {
 	negative,
 	overflow,
 	nonoverflow,
-	// unused
 	never,
 };

@@ -5,12 +5,13 @@
 class s24 {
 
 private:
-	// force 3 bytes with pragma pack
 	s32 value :24;
 
 public:
 	// constructors
-	s24() : value() {}
+	s24() :
+			value() {
+	}
 	s24(const s24& val) {
 		value = val.value;
 	}
@@ -19,50 +20,50 @@ public:
 	}
 
 	// conversion needed for operations
-    operator int() {
+	operator int() {
 		return value;
 	}
 
-    // compound assignments need overloading
-    s24& operator +=(s24 that) {
-    	this->value = this->value + that.value;
-    	return *this;
-    }
-    s24& operator -=(s24 that) {
-    	this->value = this->value - that.value;
-    	return *this;
-    }
-    s24& operator *=(s24 that) {
-    	this->value = this->value * that.value;
-    	return *this;
-    }
-    s24& operator /=(s24 that) {
-    	this->value = this->value / that.value;
-    	return *this;
-    }
-    s24& operator %=(s24 that) {
-    	this->value = this->value % that.value;
-    	return *this;
-    }
-    s24& operator &=(s24 that) {
-    	this->value = this->value & that.value;
-    	return *this;
-    }
-    s24& operator |=(s24 that) {
-    	this->value = this->value | that.value;
-    	return *this;
-    }
-    s24& operator ^=(s24 that) {
-    	this->value = this->value ^ that.value;
-    	return *this;
-    }
-    s24& operator >>=(s24 that) {
-    	this->value = this->value >> that.value;
-    	return *this;
-    }
-    s24& operator <<=(s24 that) {
-    	this->value = this->value << that.value;
-    	return *this;
-    }
+	// compound assignments need overloading
+	s24& operator +=(s24 that) {
+		this->value = this->value + that.value;
+		return *this;
+	}
+	s24& operator -=(s24 that) {
+		this->value = this->value - that.value;
+		return *this;
+	}
+	s24& operator *=(s24 that) {
+		this->value = this->value * that.value;
+		return *this;
+	}
+	s24& operator /=(s24 that) {
+		this->value = this->value / that.value;
+		return *this;
+	}
+	s24& operator %=(s24 that) {
+		this->value = this->value % that.value;
+		return *this;
+	}
+	s24& operator &=(s24 that) {
+		this->value = this->value & that.value;
+		return *this;
+	}
+	s24& operator |=(s24 that) {
+		this->value = this->value | that.value;
+		return *this;
+	}
+	s24& operator ^=(s24 that) {
+		this->value = this->value ^ that.value;
+		return *this;
+	}
+	s24& operator >>=(s24 that) {
+		this->value = this->value >> that.value;
+		return *this;
+	}
+	s24& operator <<=(s24 that) {
+		this->value = this->value << that.value;
+		return *this;
+	}
 
 };

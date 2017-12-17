@@ -3,28 +3,29 @@
 
 A simple emulator in C++ built around a custom designed 24 bits cpu.
 
-Made for practising the implementation of an emulator of a custom virtual computer.
+Made for practising the implementation of an emulator for a virtual computer.
 Additionally playing with git and improve C++ programming skills.
-Might transform into some toy project like a virtual console game, 
+Might transform into some toy project like a virtual console game,
  proof of concept for a minimal general operating system or 
- simulate networked hacking of virtual computers.
+ simulate hacking in networked virtual computers.
 
 Documentation will come when the design is stable.
 
 ## Currently working
 
-* instruction set
+* instruction set interpreted at 16 MHz
 * keyboard input
 * video and audio output
 
 ## Future work
 
 * memory protection
-* multiple cores
-* networking
+* privilege mode
+* multiple cores running in threads
 * more emulated hardware
 * more optimizations
-* possibility of Qt front-end
+* networking
+* nice Qt front-end
 
 ## Dependencies
 

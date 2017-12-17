@@ -43,7 +43,7 @@
 // log
 
 // preprocessor useful constants
-//__FILE__, __LINE__, __DATE__, __TIME__
+//__FILE__, __LINE__, __DATE__, __TIME__, __FUNC__
 
 // optimization related likely, unlikely, force_inline
 #define likely(expr) __builtin_expect(!!(expr), 1)
