@@ -2,6 +2,7 @@
 # this project
 data/
 docs/
+log.txt
 
 ## C
 
@@ -94,6 +95,9 @@ dkms.conf
 *.out
 *.app
 
+## Code
+
+.vscode/
 
 ## Eclipse
 
@@ -112,45 +116,20 @@ local.properties
 .settings/
 .loadpath
 .recommenders
-
-# External tool builders
 .externalToolBuilders/
-
-# Locally stored "Eclipse launch configurations"
 *.launch
-
-# PyDev specific (Python IDE for Eclipse)
 *.pydevproject
-
-# CDT-specific (C/C++ Development Tooling)
 .cproject
-
-# Java annotation processor (APT)
 .factorypath
-
-# PDT-specific (PHP Development Tools)
 .buildpath
-
-# sbteclipse plugin
 .target
-
-# Tern plugin
 .tern-project
-
-# TeXlipse plugin
 .texlipse
-
-# STS (Spring Tool Suite)
 .springBeans
-
-# Code Recommenders
 .recommenders/
-
-	# Scala IDE specific (Scala & Java development for Eclipse)
 .cache-main
 .scala_dependencies
 .worksheet
-
 
 ## Linux
 
@@ -167,9 +146,29 @@ ehthumbs.db
 ehthumbs_vista.db
 *.stackdump
 Desktop.ini
+desktop.ini
 $RECYCLE.BIN/
 *.cab
 *.msi
 *.msm
 *.msp
 *.lnk
+
+## MacOS
+
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
