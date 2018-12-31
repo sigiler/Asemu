@@ -13,7 +13,7 @@
 
 // interrupt control
 
-// exceptions control
+// exception control
 
 // privilege control
 	// set where system call goes
