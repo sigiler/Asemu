@@ -1,32 +1,29 @@
 
 # Asemu
 
-A simple emulator in C++ built around a custom designed 24 bits cpu.
+A simple emulator in C++ built around a custom designed 24 bits cpu instruction set.
 
-Made for practising the implementation of an emulator for a virtual computer.
-Additionally playing with git and improve C++ programming skills.
-Might transform into some toy project like a virtual console game,
- proof of concept for a minimal general operating system or 
- simulate hacking in networked virtual computers.
+Made for the purpose of experimenting with C++, git, IDEs, build systems and coding assembly 24 bits style.
 
-Documentation will come when the design is stable.
+Currently you can punch hex code to boostrap your dream virtual computer or game console. Demo is just flickering pixels by pressing arrows until screen is filled with black.
 
-## Currently working
+No documentation present to help.
+
+## Features
 
 * instruction set interpreted at 16 MHz
 * keyboard input
 * video and audio output
 
-## Future work
+## Compiling
 
-* memory protection
-* privilege mode
-* multiple cores running in threads
-* more emulated hardware
-* more optimizations
-* networking
-* nice Qt front-end
-
-## Dependencies
+### Dependencies
 
 * SDL2
+
+### Building with Meson
+```
+meson build
+cd build
+ninja
+```
