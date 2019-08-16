@@ -1,7 +1,8 @@
 
-# this project
+# Asemu local stuff
 data/
 docs/
+experiments/
 log.txt
 
 ## C
@@ -95,12 +96,10 @@ dkms.conf
 *.out
 *.app
 
-## Code
-
+## Visual Studio Code
 .vscode/
 
 ## Eclipse
-
 Debug/
 Release/
 
@@ -130,6 +129,9 @@ local.properties
 .cache-main
 .scala_dependencies
 .worksheet
+
+## Meson
+build/
 
 ## Linux
 
