@@ -9,6 +9,7 @@ struct gpu2d {
 
 struct gpu3d {
 	// matrices
+	// vertices
 };
 
 struct renderer_soft {

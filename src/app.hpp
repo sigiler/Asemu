@@ -16,19 +16,16 @@ struct App {
 	/*
 	bool Running;
 	int RunMain() {
-	    if (Init() == false) {
-	        return -1;
+	    if (!Init()) {
+	        return EXIT_FAILURE;
 	    }
-
 	    while(Running) {
 	        HandleInput();
 	        HandleMain();
 	        HandleRender();
 	    }
-
 	    DeInit();
-
-	    return 0;
+	    return EXIT_SUCCESS;
 	}
 	*/
 

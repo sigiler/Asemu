@@ -8,7 +8,7 @@
 App_SDL app;
 
 // run emulator
-void test1(void) {
+void demo1() {
 	//logger.log("start test");
 
 	memory* m = app.e->m;
@@ -53,8 +53,8 @@ void test1(void) {
 	//logger.log("end test");
 }
 
-// testing a opcode
-void test2() {
+// test a opcode
+void test1() {
 	// preparation
 	Emu* e = new Emu;
 	e->Init();
@@ -71,11 +71,16 @@ void test2() {
 	for (int i = 0; i < binary_size; i++) {
 		m->buffer[i] = binary[i];
 	}
-	// execute code
+
+	// execute some code to see how it goes
 	c->advance(10);
+
 	// test
+	//c->regs.a = 0;
+	//c->regs.gpr[2] = 0;
 	if (c->regs.c != 16777215)
 		printf("error!\n");
+	
 	// see result
 	printf("a=%i\n", (u32)c->regs.a);
 	printf("b=%i\n", (u32)c->regs.b);
@@ -91,6 +96,8 @@ void test2() {
 int main() {
 
 	test1();
+	
+	demo1();
 
 	return EXIT_SUCCESS;
 }

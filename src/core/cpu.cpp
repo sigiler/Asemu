@@ -4,12 +4,6 @@
 #include "../utils/logger.hpp"
 #include "../common/common_types.hpp"
 
-// addressing modes, instructions execution could be unrolled even further
-// then isa_table updated for faster execution
-// TODO fix endianness in everything to be consistent, it is a mess at the moment
-// TODO correct broken behaviour, test everything, again...
-// specially flags and decoding code
-
 // table for opcodes base length in bytes
 const u8 opcode_bytes[256] = {
 // _0,_1,_2,_3,_4,_5,_6,_7,_8,_9,_A,_B,_C,_D,_E,_F
@@ -773,10 +767,12 @@ inline void cpu::write_byte(u32 a, u8 v) {
 }
 
 inline u32 cpu::read_word(u32 a) {
-	u32 value = mem->buffer[a];
-	value |= mem->buffer[a+1] << 8;
-	value |= mem->buffer[a+2] << 16;
-	return value;
+	u32* ptr_word = reinterpret_cast<u32*>(&mem->buffer[a]);
+	return *ptr_word & 0xFFFFFF;
+	//u32 value = mem->buffer[a];
+	//value |= mem->buffer[a+1] << 8;
+	//value |= mem->buffer[a+2] << 16;
+	//return value;
 }
 
 inline void cpu::write_word(u32 a, u32 v) {

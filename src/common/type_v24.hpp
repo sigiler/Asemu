@@ -29,7 +29,8 @@ struct u24View {
 
 // Asemu specific, move later
 
-template<u8 i> struct RegView {
+template<u8 i>
+struct RegView {
 
 	u24 r[12];
 

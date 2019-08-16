@@ -1,12 +1,13 @@
 
 #pragma once
 
+#include "../../common/common_types.hpp"
+
 struct dma {
 	// direct memory access
-	// copy between physical memory basically
-	u32 cnt;
-	u32 src;
-	u32 dst;
-	u32 len;
-
+	// basically hardware dedicated to copy data
+	u32 cnt;  // control
+	u32 src;  // source
+	u32 dst;  // destination
+	u32 len;  // length
 };
