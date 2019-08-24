@@ -21,6 +21,18 @@ No documentation present to help.
 
 * SDL2
 
+### Building with Makefile
+```
+make
+```
+
+### Building with CMake
+```
+cmake -S . -B build
+cd build
+make
+```
+
 ### Building with Meson
 ```
 meson build
