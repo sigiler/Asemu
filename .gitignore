@@ -5,136 +5,21 @@ docs/
 experiments/
 log.txt
 
-## C
-
-# Prerequisites
-*.d
-
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
-
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-
-## C++
-
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
 ## Visual Studio Code
 .vscode/
 
 ## Eclipse
 Debug/
 Release/
-
-.metadata
-bin/
-tmp/
-*.tmp
-*.bak
-*.swp
-*~.nib
-local.properties
-.project
 .settings/
-.loadpath
-.recommenders
-.externalToolBuilders/
-*.launch
-*.pydevproject
 .cproject
-.factorypath
-.buildpath
-.target
-.tern-project
-.texlipse
-.springBeans
-.recommenders/
-.cache-main
-.scala_dependencies
-.worksheet
+.project
 
-## Meson
+## Makefile CMake Meson
 build/
+.build/
 
 ## Linux
-
 *~
 .fuse_hidden*
 .directory
@@ -142,7 +27,6 @@ build/
 .nfs*
 
 ## Windows
-
 Thumbs.db
 ehthumbs.db
 ehthumbs_vista.db
@@ -157,7 +41,6 @@ $RECYCLE.BIN/
 *.lnk
 
 ## MacOS
-
 .DS_Store
 .AppleDouble
 .LSOverride
