@@ -1,0 +1,18 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build Asemu Debug",
+            "type": "shell",
+            "command": "ninja",
+            "args": [
+                "-C",
+                ".build"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
