@@ -43,6 +43,12 @@ release: clean all
 clean:
 	-@rm -rvf $(BUILD_PATH)/*
 
+.PHONY: distclean
+distclean:
+	rm -r build/*
+	rm -r .build/*
+	rm log.txt
+
 test:
 	@echo $(SRC_DIRS)
 	@echo $(CPPFILES)
