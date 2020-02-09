@@ -1,7 +1,7 @@
 
 CXX      := g++
 CXXFLAGS := -std=c++17 -Wall -Wextra
-LDFLAGS  := -L/usr/lib -L/usr/lib/ -lm -lSDL2
+LDFLAGS  := -L/usr/lib -lm -lSDL2
 LDLIBS   := 
 INCLUDES := -Isrc -I/usr/include -I/usr/local/include
 NAME_EXT := 
