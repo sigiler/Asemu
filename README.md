@@ -22,19 +22,22 @@ No documentation present to help.
 * SDL2
 
 ### Building with Makefile
-```
+
+```bash
 make
 ```
 
 ### Building with CMake
-```
+
+```bash
 cmake -S . -B build
 cd build
 make
 ```
 
 ### Building with Meson
-```
+
+```bash
 meson build
 cd build
 ninja
