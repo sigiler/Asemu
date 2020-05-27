@@ -718,8 +718,8 @@ const instruction isa_table[256] = {
 	instr_uop, instr_uop, instr_uop, instr_ret_ff, instr_uop, instr_uop, instr_uop, instr_uop,
 	instr_stub, instr_stub, instr_stub, instr_stub, instr_stub, instr_stub, instr_stub, instr_uop, // EX
 	instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop,
-	instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, // FX
-	instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_nop,
+	instr_uop, instr_fint, instr_rets, instr_dint, instr_eint, instr_uop, instr_uop, instr_uop, // FX
+	instr_dbg, instr_brk, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_nop,
 };
 
 
@@ -739,8 +739,9 @@ cpu::cpu() {
 	mode = 0;
 	opcode = 0;
 	cyclesExecuted = 0;
-	cycleNextEvent = 0;
 
+	cyclesPerFrame = clock_rate / 24;
+	cyclesUntilEvent = cyclesPerFrame;
 }
 
 cpu::~cpu() {
@@ -867,6 +868,15 @@ void cpu::reset() {
 }
 
 void cpu::step() {
+	// event
+	if (cyclesUntilEvent == 0) {
+		if (regs.fs.s.ie) {
+			cpu::interrupt();
+		}
+		cyclesUntilEvent = cyclesPerFrame; // once per frame rate
+	} else {
+		cyclesUntilEvent -= 1;
+	}
 	// fetch
 	opcode = mem->buffer[regs.cp];
 	// decode

@@ -76,7 +76,10 @@ struct cpu {
 	u8 mode;
 	u32 opcode;
 	u64 cyclesExecuted;  // number of executed cycles since restart or wrap
-	u64 cycleNextEvent;
+	//u64 cycleNextEvent;
+	u64 cyclesUntilEvent;
+	u64 cyclesPerFrame;
+	//bool eventScheduled;
 
 	// emulation state
 	bool ended = false;
