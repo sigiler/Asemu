@@ -1,6 +1,6 @@
 
 project('Asemu', 'cpp',
-  default_options : ['cpp_std=c++11'])
+  default_options : ['cpp_std=c++17'])
 
 src = [
     'src/core/board.cpp',
