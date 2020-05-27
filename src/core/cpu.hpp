@@ -74,6 +74,7 @@ struct cpu {
 
 	// state
 	u8 mode;
+	u8 ackint;
 	u32 opcode;
 	u64 cyclesExecuted;  // number of executed cycles since restart or wrap
 	//u64 cycleNextEvent;

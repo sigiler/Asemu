@@ -661,6 +661,7 @@ void instr_rets(cpu* c) {
 	c->regs.cp = c->pop_word();
 	c->regs.fs.s.i = 0;
 	c->regs.fs.s.e = 0;
+	c->ackint = 1;
 	//c->cyclesExecuted += 1;
 }
 
@@ -677,9 +678,10 @@ void instr_eint(cpu* c) {
 }
 
 void instr_slp(cpu* c) {
-	// to implement by looping to itself until interrupt or detect mode in execution
-	//c->mode = 0;
-	c->regs.cp += 1;
+	if (c->ackint == 1) {
+		c->ackint = 0;
+		c->regs.cp += 1;
+	}
 	//c->cyclesExecuted += 1;
 }
 
@@ -717,7 +719,7 @@ const instruction isa_table[256] = {
 	instr_uop, instr_uop, instr_uop, instr_ret_ff, instr_uop, instr_uop, instr_uop, instr_uop,
 	instr_stub, instr_stub, instr_stub, instr_stub, instr_stub, instr_stub, instr_stub, instr_uop, // EX
 	instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop,
-	instr_uop, instr_fint, instr_rets, instr_dint, instr_eint, instr_uop, instr_uop, instr_uop, // FX
+	instr_slp, instr_fint, instr_rets, instr_dint, instr_eint, instr_uop, instr_uop, instr_uop, // FX
 	instr_dbg, instr_brk, instr_uop, instr_uop, instr_uop, instr_uop, instr_uop, instr_nop,
 };
 
@@ -736,6 +738,7 @@ cpu::cpu() {
 	clock_rate = 16 * 1024 * 1024;  // 2^24 = 16777216 Hz
 
 	mode = 0;
+	ackint = 0;
 	opcode = 0;
 	cyclesExecuted = 0;
 
@@ -842,6 +845,7 @@ void cpu::interrupt() {
 	cpu::push_word(regs.cp);
 	regs.cp = regs.ip;
 	regs.fs.s.i = 1;
+	ackint = 0;
 }
 
 void cpu::exception() {
@@ -863,6 +867,7 @@ void cpu::reset() {
 	}
 	// reset state
 	mode = 0;
+	ackint = 0;
 	cyclesExecuted = 0;
 }
 
