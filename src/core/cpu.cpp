@@ -672,7 +672,7 @@ void instr_dint(cpu* c) {
 }
 
 void instr_eint(cpu* c) {
-	c->regs.fs.s.ee = 0;
+	c->regs.fs.s.ie = 1;
 	c->regs.cp += 1;
 	//c->cyclesExecuted += 1;
 }
