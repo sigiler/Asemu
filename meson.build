@@ -2,6 +2,10 @@
 project('Asemu', 'cpp',
   default_options : ['cpp_std=c++17'])
 
+if get_option('buildtype').startswith('debug')
+  add_project_arguments('-DDEBUG', language : 'cpp')
+endif
+
 src = [
     'src/core/board.cpp',
     'src/core/cpu.cpp',
