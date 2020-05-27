@@ -27,7 +27,7 @@ void updateKeyboard(keys* k) {
 	u8 row, col;
 	for (row = 0; row < 7; row++) {
 		keys_row_state = 0;
-		key_bit = 1 << 24;
+		key_bit = 1 << 23;
 		for (col = 0; col < 24; col++) {
 			key_scancode = relevant_key[row][col];
 			if (keyboard_state[key_scancode]) {
