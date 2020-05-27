@@ -646,14 +646,14 @@ void instr_ret_ff(cpu* c) {
 }
 
 void instr_fint(cpu* c) {
-	c->interrupt();
 	c->regs.cp += 1;
+	c->interrupt();
 	//c->cyclesExecuted += 1;
 }
 
 void instr_fexc(cpu* c) {
-	c->exception();
 	c->regs.cp += 1;
+	c->exception();
 	//c->cyclesExecuted += 1;
 }
 
