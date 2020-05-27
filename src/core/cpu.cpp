@@ -685,6 +685,26 @@ void instr_slp(cpu* c) {
 	//c->cyclesExecuted += 1;
 }
 
+// DEBUG instruction, remove later
+void instr_dbg(cpu* c) {
+#ifdef DEBUG
+	printf("a=%i, b=%i, c=%i\n", (u32)c->regs.a, (u32)c->regs.b, (u32)c->regs.c);
+	printf("x=%i, y=%i, z=%i\n", (u32)c->regs.x, (u32)c->regs.y, (u32)c->regs.z);
+	printf("cp=%i, sp=%i, fs=%i\n", (u32)c->regs.cp, (u32)c->regs.sp, (u32)c->regs.fs);
+#endif
+	c->regs.cp += 1;
+}
+
+// DEBUG instruction, remove later
+void instr_brk(cpu* c) {
+#ifdef DEBUG
+	c->ended = true;
+	c->running = false;
+#else
+	c->regs.cp += 1;
+#endif
+}
+
 // table for instruction set callbacks
 const instruction isa_table[256] = {
 	// X0, X1, X2, X3, X4, X5, X6, X7
@@ -887,6 +907,12 @@ void cpu::step() {
 	instruction instr = instr_set[opcode];
 	// execute
 	instr(this);
+#ifdef DEBUG
+#ifdef VERBOSE
+	// trace debug
+	printf("opcode: 0x%.2X, address: 0x%.6X\n", c->opcode, (u32)c->regs.cp);
+#endif
+#endif
 }
 
 u64 cpu::advance(u64 amount) {
