@@ -567,7 +567,7 @@ void instr_alu_r_rr(cpu* c) {
 	u24 result, a;
 	f24 newflags;
 	u8 fetch2 = c->fetch_byte();
-	operation = c->opcode - 0xAA;
+	operation = c->opcode - 12;
 	operand1 = (fetch2 >> 4) & 0x0F;
 	operand2 = fetch2 & 0x0F;
 	a = c->read_reg_mode1_word(a);
