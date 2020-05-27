@@ -53,6 +53,16 @@ void demo1() {
 	//logger.log("end test");
 }
 
+// run a rom
+void demo2() {
+	std::string filename = "./experiments/a.img";
+	app.e->loadRom(filename);
+	
+	printf("enter\n");
+	app.Run();
+	printf("exit\n");
+}
+
 // test a opcode
 void test1() {
 	// preparation
@@ -95,9 +105,7 @@ void test1() {
 
 int main(int argc, char *argv[]) {
 
-	test1();
-	
-	demo1();
+	demo2();
 
 	return EXIT_SUCCESS;
 }

@@ -89,3 +89,33 @@ void Emu::saveState(std::string stateFileName) {
 
 }
 
+void Emu::loadRom(std::string filename) {
+	std::fstream filestream;
+	std::streampos filesize;
+	char* memblock;
+	u32 memsize;
+
+	// read rom/image binary file
+	filestream.open(filename.c_str(), std::ios::in | std::ios::binary);
+	if (!filestream.is_open()) {
+		return;
+	}
+	filestream.seekg(0, std::ios::end);
+    filesize = filestream.tellg();
+	memsize = (u32) filesize;
+    memblock = new char[memsize];
+    filestream.seekg(0, std::ios::beg);
+    filestream.read(memblock, filesize);
+    filestream.close();
+	
+	// copy rom into memory
+	for (u32 i = 0; i < memsize; i++) {
+		this->m->buffer[i] = memblock[i];
+	}
+
+	delete[] memblock;
+}
+
+void Emu::saveRom(std::string filename) {
+	// TODO
+}

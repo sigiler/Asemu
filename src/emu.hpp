@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 #include "core/cpu.hpp"
 #include "core/mem.hpp"
@@ -41,6 +42,9 @@ struct Emu {
 	void EndRun();
 
 	void Advance(u32 steps);
+
+	void loadRom(std::string filename);
+	void saveRom(std::string filename);
 
 	void saveState(std::string stateFileName);
 	void loadState(std::string stateFileName);
