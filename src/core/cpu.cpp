@@ -661,7 +661,6 @@ void instr_rets(cpu* c) {
 	c->regs.cp = c->pop_word();
 	c->regs.fs.s.i = 0;
 	c->regs.fs.s.e = 0;
-	c->regs.cp += 1;
 	//c->cyclesExecuted += 1;
 }
 
