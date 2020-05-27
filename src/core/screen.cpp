@@ -2,10 +2,16 @@
 #include "screen.hpp"
 
 screen::screen() {
-	width = 64;
-	height = 64;
+	width = 320;
+	height = 240;
+
 	depth = 24;
 
+	color_mode = 0;
+	palette = nullptr;
+
+	framerate = 24;
+	
 	pixel_data = nullptr;
 
 	mem = nullptr;
@@ -32,4 +38,3 @@ screen::~screen() {
 u8* screen::getPixelBuffer() {
 	return &mem->buffer[base_address];
 }
-

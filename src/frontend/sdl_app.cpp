@@ -7,15 +7,17 @@ App_SDL::App_SDL() {
 
     Window = nullptr;
 
+    e = new Emu;
+
     WindowRenderer = nullptr;
     WindowTexture = nullptr;
-    u32 screenBufferLength = 128 * 128;
+    u32 screenBufferLength = e->s->width * e->s->height;  // in 32 bit depth for SDL
     pixels = new u32[screenBufferLength];
 
     //want = 0;
     //have = 0;
     audiodev = 0;
-    samplesLen = 48000 * 2 * 2 / 60;  // holds enough for 2/60 seconds
+    samplesLen = 48000 * 2 * 2 / 24;  // holds enough for 48khz sample rate, 2 channels, 16 bit depth and 1 fps
     samples = new u16[samplesLen];
     sampleNext = 0;
 
@@ -25,8 +27,6 @@ App_SDL::App_SDL() {
 	timeFrameStart = 0;
 	timeFrameEnd = 0;
 	fps = 0;
-
-    e = new Emu;
 
 }
 
@@ -57,8 +57,11 @@ bool App_SDL::Init() {
     if(SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         return false;
     }
+    
+    int window_w = e->s->width*2;
+    int window_h = e->s->height*2;
 
-    Window = SDL_CreateWindow("Emuplat", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 640, SDL_WINDOW_SHOWN );
+    Window = SDL_CreateWindow("Asemu", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, window_w, window_h, SDL_WINDOW_SHOWN );
     if (Window == nullptr) {
         return false;
     }
@@ -66,7 +69,7 @@ bool App_SDL::Init() {
     // create graphics hw accelerated, blank, RGBA format, won't use alpha channel
     WindowRenderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED);
     SDL_SetRenderDrawColor(WindowRenderer, 0x00, 0x00, 0x00, 0x00);
-	WindowTexture = SDL_CreateTexture(WindowRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, 128, 128);
+	WindowTexture = SDL_CreateTexture(WindowRenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, e->s->width, e->s->height);
 
 	// create sound system
 	SDL_memset(&have, 0, sizeof(have));
@@ -145,8 +148,7 @@ void App_SDL::HandleInput() {
 
 
 void App_SDL::HandleMain() {
-
-	e->Advance(e->c->clock_rate / 60);
+	e->Advance(e->c->clock_rate / e->s->framerate);
 	updateKeyboard(e->k);
 	updateScreen(WindowTexture, pixels, e->s);
 	updateSpeaker(audiodev, samples, &samplesLen, &sampleNext, e->a);
@@ -172,9 +174,10 @@ void App_SDL::HandleRender() {
 void App_SDL::Sync() {
 	// slow down simulation by delaying next
 	// also generally good idea to give some time back to OS
-	int delay_amount = (1000 / 60) - (timeFrameEnd - timeFrameStart);
+    int timeFrame = timeFrameEnd - timeFrameStart;
+	int delay_amount = (1000 / e->s->framerate) - timeFrame;
 	if (delay_amount < 1)
 		delay_amount = 1;
-	printf("delay = %i, used = %i\n", delay_amount, timeFrameEnd - timeFrameStart);
+	printf("framerate = %i, delay = %i, used = %i\n", e->s->framerate, delay_amount, timeFrame);
 	SDL_Delay(delay_amount);
 }

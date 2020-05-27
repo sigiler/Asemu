@@ -5,9 +5,9 @@
 
 void updateScreen(SDL_Texture* texture, u32* pixels, screen* s) {
 
-	u32 screenBufferLength = 128 * 128;
+	u32 screenBufferLength = s->width * s->height;
 
-	int pitch = 128 * 4;
+	int pitch = s->width * 4;
 
 	u8* screen = s->getPixelBuffer();
 

@@ -14,8 +14,11 @@ struct screen {
 	u32 width;
 	u32 height;
 	u32 depth;   // bits per pixel
-	//u8* palette; // table of colours
-	//u8 maxframerate;
+
+	u8 color_mode; // BW, GS, color palette, RGB, RGBA
+	u8* palette; // table of colours
+
+	u8 framerate;
 
 	// internal state
 	u8* pixel_data;
