@@ -1,9 +1,18 @@
 
-# Asemu local stuff
+# Asemu keep out of repo for fow
 data/
 docs/
+examples/
 experiments/
+tests/
+
+# Dev build debug stuff
+build/
+.build/
+cache/
+.cache/
 temp/
+.temp/
 log.txt
 
 ## Visual Studio Code
@@ -21,8 +30,6 @@ Release/
 .project
 
 ## Makefile CMake Meson
-build/
-.build/
 CMakeFiles
 cmake_install.cmake
 CMakeCache.txt
